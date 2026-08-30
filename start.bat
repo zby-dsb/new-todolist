@@ -8,19 +8,24 @@ REM 1a. PATH (in case it is ever available)
 for /f "delims=" %%i in ('where pythonw 2^>nul') do (
     if not defined PYW set "PYW=%%i"
 )
-REM 1b. WorkBuddy managed Python (version-agnostic glob)
+REM 1b. standard per-user install: %LOCALAPPDATA%\Programs\Python\Python3*\pythonw.exe
+if not defined PYW (
+    for /f "delims=" %%i in ('dir /b /s "%LOCALAPPDATA%\Programs\Python\pythonw.exe" 2^>nul') do (
+        if not defined PYW set "PYW=%%i"
+    )
+)
+REM 1c. WorkBuddy managed Python (version-agnostic glob) — fallback
 if not defined PYW (
     for /f "delims=" %%i in ('dir /b /s "%USERPROFILE%\.workbuddy\binaries\python\pythonw.exe" 2^>nul') do (
         if not defined PYW set "PYW=%%i"
     )
 )
-REM 1c. common system Python installs
+REM 1d. common system Python installs
 if not defined PYW (
     for %%d in (
         "C:\Python313\pythonw.exe"
         "C:\Python312\pythonw.exe"
         "C:\Python311\pythonw.exe"
-        "%LOCALAPPDATA%\Programs\Python\pythonw.exe"
     ) do (
         if not defined PYW if exist %%d set "PYW=%%d"
     )
