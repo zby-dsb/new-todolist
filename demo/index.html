@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>每日任务清单 · Demo</title>
+<style>
+  :root {
+    --bg: #f5f7fa;
+    --card: #ffffff;
+    --border: #e3e8ef;
+    --text: #1f2933;
+    --muted: #7b8794;
+    --primary: #2563eb;
+    --primary-hover: #1d4ed8;
+    --done: #9aa5b1;
+    --danger: #e04646;
+    --shadow: 0 1px 3px rgba(0,0,0,.06), 0 8px 24px rgba(0,0,0,.04);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+    padding: 32px 16px;
+  }
+  .wrap { max-width: 640px; margin: 0 auto; }
+  header h1 { font-size: 22px; margin: 0 0 4px; }
+  header p.sub { color: var(--muted); font-size: 13px; margin: 0 0 20px; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+    padding: 20px;
+  }
+  .add-row { display: flex; gap: 8px; margin-bottom: 16px; }
+  .add-row input {
+    flex: 1; padding: 10px 12px; font-size: 14px;
+    border: 1px solid var(--border); border-radius: 8px; outline: none;
+  }
+  .add-row input:focus { border-color: var(--primary); }
+  button {
+    font-size: 14px; cursor: pointer; border: none; border-radius: 8px;
+    padding: 10px 16px; transition: background .15s;
+  }
+  .btn-primary { background: var(--primary); color: #fff; }
+  .btn-primary:hover { background: var(--primary-hover); }
+  .stats { font-size: 13px; color: var(--muted); margin-bottom: 12px; }
+  ul.list { list-style: none; margin: 0; padding: 0; }
+  li.item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 4px; border-top: 1px solid var(--border);
+  }
+  li.item:first-child { border-top: none; }
+  .check {
+    width: 20px; height: 20px; border: 2px solid var(--border);
+    border-radius: 6px; cursor: pointer; flex: none; display: grid; place-items: center;
+    color: #fff; font-size: 13px;
+  }
+  .item.done .check { background: var(--primary); border-color: var(--primary); }
+  .item.done .content { color: var(--done); text-decoration: line-through; }
+  .content { flex: 1; font-size: 15px; word-break: break-all; }
+  .id-tag { color: var(--muted); font-size: 12px; width: 28px; flex: none; }
+  .btn-del {
+    background: transparent; color: var(--danger); padding: 6px 10px; font-size: 13px;
+  }
+  .btn-del:hover { background: #fdeaea; }
+  .empty { color: var(--muted); text-align: center; padding: 24px 0; font-size: 14px; }
+  .note {
+    margin-top: 16px; font-size: 12px; color: var(--muted);
+    background: #fff8e6; border: 1px solid #f3e3b3; border-radius: 8px; padding: 10px 12px;
+  }
+  .flow { display: flex; gap: 8px; margin: 18px 0 0; flex-wrap: wrap; }
+  .flow .step {
+    font-size: 12px; color: var(--muted); background: var(--card);
+    border: 1px solid var(--border); border-radius: 999px; padding: 4px 12px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>每日任务清单</h1>
+    <p class="sub">Demo 原型 · 模拟数据，仅用于确认界面与操作流程</p>
+  </header>
+
+  <div class="card">
+    <div class="add-row">
+      <input id="taskInput" type="text" placeholder="输入新任务，回车或点“添加”" />
+      <button class="btn-primary" id="addBtn">添加</button>
+    </div>
+
+    <div class="stats" id="stats">共 0 项 · 已完成 0 项</div>
+
+    <ul class="list" id="list"></ul>
+
+    <div class="note">
+      ⚠️ 这是演示版：数据存在内存中，<b>刷新页面会重置</b>，未接入真实后端 / 存储。
+    </div>
+
+    <div class="flow">
+      <span class="step">① 添加 add</span>
+      <span class="step">② 查看 list</span>
+      <span class="step">③ 完成 done</span>
+      <span class="step">④ 删除 rm</span>
+    </div>
+  </div>
+</div>
+
+<script>
+  // —— 模拟数据（真实版会来自 tasks.json / 后端）——
+  let tasks = [
+    { id: 1, content: "复习 STM32 定时器", done: false },
+    { id: 2, content: "写操作系统实验报告", done: false },
+    { id: 3, content: "健身 30 分钟", done: true },
+    { id: 4, content: "读《代码整洁之道》一章", done: false },
+  ];
+  let nextId = 5;
+
+  const listEl = document.getElementById("list");
+  const statsEl = document.getElementById("stats");
+  const inputEl = document.getElementById("taskInput");
+  const addBtn = document.getElementById("addBtn");
+
+  function render() {
+    listEl.innerHTML = "";
+    if (tasks.length === 0) {
+      listEl.innerHTML = '<div class="empty">清单为空，添加一个任务试试 →</div>';
+    } else {
+      tasks.forEach(t => {
+        const li = document.createElement("li");
+        li.className = "item" + (t.done ? " done" : "");
+        li.innerHTML = `
+          <span class="id-tag">#${t.id}</span>
+          <span class="check" data-act="toggle" data-id="${t.id}">${t.done ? "✓" : ""}</span>
+          <span class="content">${escapeHtml(t.content)}</span>
+          <button class="btn-del" data-act="del" data-id="${t.id}">删除</button>
+        `;
+        listEl.appendChild(li);
+      });
+    }
+    const doneCount = tasks.filter(t => t.done).length;
+    statsEl.textContent = `共 ${tasks.length} 项 · 已完成 ${doneCount} 项`;
+  }
+
+  function escapeHtml(s) {
+    return s.replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+  }
+
+  // add
+  function addTask() {
+    const v = inputEl.value.trim();
+    if (!v) return;
+    tasks.push({ id: nextId++, content: v, done: false });
+    inputEl.value = "";
+    render();
+  }
+  addBtn.addEventListener("click", addTask);
+  inputEl.addEventListener("keydown", e => { if (e.key === "Enter") addTask(); });
+
+  // list 点击委托：toggle(done) / del(rm)
+  listEl.addEventListener("click", e => {
+    const el = e.target.closest("[data-act]");
+    if (!el) return;
+    const id = Number(el.dataset.id);
+    const act = el.dataset.act;
+    if (act === "toggle") {
+      const t = tasks.find(x => x.id === id);
+      if (t) t.done = !t.done;
+    } else if (act === "del") {
+      tasks = tasks.filter(x => x.id !== id);
+    }
+    render();
+  });
+
+  render();
+</script>
+</body>
+</html>
