@@ -199,9 +199,31 @@
 
 <script>
   // —— 接口封装 ——
+  // 统一解析错误响应：服务器若返回 HTML 错误页（如 501「方法不支持」），
+  // 直接 r.json() 会抛出 "Unexpected token '<'"，这里换成可读提示。
+  async function friendlyError(r, fallback) {
+    let text = "";
+    try {
+      text = await r.text();
+    } catch (_) {
+      text = "";
+    }
+    try {
+      const j = JSON.parse(text);
+      if (j && j.error) return j.error;
+    } catch (_) { /* 不是 JSON，走下面的兜底提示 */ }
+    if (r.status === 501) {
+      return fallback + "：后端不支持该操作（HTTP 501）。通常是服务还停在旧版本，"
+        + "请双击 stop.bat 关闭、再双击 start.vbs 启动后重试。";
+    }
+    return fallback + "：服务器返回了非 JSON 响应（HTTP " + r.status + "）。"
+      + "请重启应用（stop.bat → start.vbs）后重试。";
+  }
+
   const api = {
     async list(date) {
       const r = await fetch("/api/tasks?date=" + encodeURIComponent(date));
+      if (!r.ok) throw new Error(await friendlyError(r, "加载失败"));
       return r.json();
     },
     async add(content) {
@@ -210,12 +232,12 @@
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content }),
       });
-      if (!r.ok) throw new Error((await r.json()).error || "添加失败");
+      if (!r.ok) throw new Error(await friendlyError(r, "添加失败"));
       return r.json();
     },
     async toggle(id) {
       const r = await fetch(`/api/tasks/${id}/toggle`, { method: "POST" });
-      if (!r.ok) throw new Error("操作失败");
+      if (!r.ok) throw new Error(await friendlyError(r, "操作失败"));
       return r.json();
     },
     async edit(id, content) {
@@ -224,17 +246,17 @@
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content }),
       });
-      if (!r.ok) throw new Error((await r.json()).error || "保存失败");
+      if (!r.ok) throw new Error(await friendlyError(r, "保存失败"));
       return r.json();
     },
     async remove(id) {
       const r = await fetch(`/api/tasks/${id}`, { method: "DELETE" });
-      if (!r.ok) throw new Error("删除失败");
+      if (!r.ok) throw new Error(await friendlyError(r, "删除失败"));
       return r.json();
     },
     async stats() {
       const r = await fetch("/api/stats");
-      if (!r.ok) throw new Error("统计数据获取失败");
+      if (!r.ok) throw new Error(await friendlyError(r, "统计数据获取失败"));
       return r.json();
     },
   };
