@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>每日任务清单 · Demo v2</title>
+<style>
+  :root {
+    --bg: #f6efe2;          /* 米色背景 */
+    --card: #fffcf6;        /* 暖白卡片 */
+    --border: #e7dcc6;
+    --text: #3a3226;        /* 暖棕文字 */
+    --muted: #9a8e78;
+    --primary: #cf8a4b;     /* 暖橘强调色 */
+    --primary-hover: #b9763b;
+    --done: #4a9d5b;       /* 完成绿 */
+    --done-bg: #e7f3e9;
+    --danger: #d96b5b;
+    --shadow: 0 1px 3px rgba(120,90,40,.08), 0 10px 28px rgba(120,90,40,.06);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+    padding: 36px 16px;
+  }
+  .wrap { max-width: 640px; margin: 0 auto; }
+  header { text-align: center; margin-bottom: 22px; }
+  header h1 {
+    font-size: 34px; font-weight: 800; margin: 0 0 6px;
+    letter-spacing: 1px; color: #5a4a32;
+  }
+  header p.sub { color: var(--muted); font-size: 13px; margin: 0; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    padding: 20px;
+  }
+  .stats { font-size: 13px; color: var(--muted); margin-bottom: 12px; }
+  ul.list { list-style: none; margin: 0 0 18px; padding: 0; }
+  li.item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 6px; border-top: 1px solid var(--border);
+  }
+  li.item:first-child { border-top: none; }
+  .check {
+    width: 22px; height: 22px; border: 2px solid var(--border);
+    border-radius: 7px; cursor: pointer; flex: none; display: grid; place-items: center;
+    color: #fff; font-size: 14px; transition: all .15s;
+  }
+  .item.done .check { background: var(--done); border-color: var(--done); }
+  .item.done .content { color: var(--muted); text-decoration: line-through; }
+  .content { flex: 1; font-size: 15px; word-break: break-all; }
+  .id-tag { color: var(--muted); font-size: 12px; width: 28px; flex: none; }
+  .btn-del {
+    background: transparent; color: var(--danger); padding: 6px 10px; font-size: 13px;
+    border-radius: 8px;
+  }
+  .btn-del:hover { background: #fbeae6; }
+
+  /* 输入区放到清单下方 */
+  .add-row {
+    display: flex; gap: 8px; padding-top: 16px; border-top: 2px dashed var(--border);
+  }
+  .add-row input {
+    flex: 1; padding: 11px 12px; font-size: 14px;
+    border: 1px solid var(--border); border-radius: 9px; outline: none;
+    background: #fffdf8;
+  }
+  .add-row input:focus { border-color: var(--primary); }
+  button {
+    font-size: 14px; cursor: pointer; border: none; border-radius: 9px;
+    padding: 11px 18px; transition: background .15s;
+  }
+  .btn-primary { background: var(--primary); color: #fff; font-weight: 600; }
+  .btn-primary:hover { background: var(--primary-hover); }
+
+  .empty { color: var(--muted); text-align: center; padding: 22px 0; font-size: 14px; }
+  .note {
+    margin-top: 16px; font-size: 12px; color: #8a7a55;
+    background: #fbf3df; border: 1px solid #efdcae; border-radius: 8px; padding: 10px 12px;
+  }
+  .flow { display: flex; gap: 8px; margin: 18px 0 0; flex-wrap: wrap; justify-content: center; }
+  .flow .step {
+    font-size: 12px; color: #8a7a55; background: var(--card);
+    border: 1px solid var(--border); border-radius: 999px; padding: 4px 12px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>每日任务清单</h1>
+    <p class="sub">Demo v2 · 模拟数据，仅用于确认界面与操作流程</p>
+  </header>
+
+  <div class="card">
+    <div class="stats" id="stats">共 0 项 · 已完成 0 项</div>
+
+    <ul class="list" id="list"></ul>
+
+    <div class="add-row">
+      <input id="taskInput" type="text" placeholder="输入新任务，回车或点“添加”" />
+      <button class="btn-primary" id="addBtn">添加</button>
+    </div>
+
+    <div class="note">
+      ⚠️ 这是演示版：数据存在内存中，<b>刷新页面会重置</b>，未接入真实后端 / 存储。
+    </div>
+
+    <div class="flow">
+      <span class="step">① 添加 add</span>
+      <span class="step">② 查看 list</span>
+      <span class="step">③ 完成 done</span>
+      <span class="step">④ 删除 rm</span>
+    </div>
+  </div>
+</div>
+
+<script>
+  // —— 模拟数据（真实版会来自 tasks.json / 后端）——
+  let tasks = [
+    { id: 1, content: "复习 STM32 定时器", done: false },
+    { id: 2, content: "写操作系统实验报告", done: false },
+    { id: 3, content: "健身 30 分钟", done: true },
+    { id: 4, content: "读《代码整洁之道》一章", done: false },
+  ];
+  let nextId = 5;
+
+  const listEl = document.getElementById("list");
+  const statsEl = document.getElementById("stats");
+  const inputEl = document.getElementById("taskInput");
+  const addBtn = document.getElementById("addBtn");
+
+  function render() {
+    listEl.innerHTML = "";
+    if (tasks.length === 0) {
+      listEl.innerHTML = '<div class="empty">清单为空，在下方添加一个任务试试 →</div>';
+    } else {
+      tasks.forEach(t => {
+        const li = document.createElement("li");
+        li.className = "item" + (t.done ? " done" : "");
+        li.innerHTML = `
+          <span class="id-tag">#${t.id}</span>
+          <span class="check" data-act="toggle" data-id="${t.id}">${t.done ? "✓" : ""}</span>
+          <span class="content">${escapeHtml(t.content)}</span>
+          <button class="btn-del" data-act="del" data-id="${t.id}">删除</button>
+        `;
+        listEl.appendChild(li);
+      });
+    }
+    const doneCount = tasks.filter(t => t.done).length;
+    statsEl.textContent = `共 ${tasks.length} 项 · 已完成 ${doneCount} 项`;
+  }
+
+  function escapeHtml(s) {
+    return s.replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+  }
+
+  function addTask() {
+    const v = inputEl.value.trim();
+    if (!v) return;
+    tasks.push({ id: nextId++, content: v, done: false });
+    inputEl.value = "";
+    render();
+  }
+  addBtn.addEventListener("click", addTask);
+  inputEl.addEventListener("keydown", e => { if (e.key === "Enter") addTask(); });
+
+  listEl.addEventListener("click", e => {
+    const el = e.target.closest("[data-act]");
+    if (!el) return;
+    const id = Number(el.dataset.id);
+    const act = el.dataset.act;
+    if (act === "toggle") {
+      const t = tasks.find(x => x.id === id);
+      if (t) t.done = !t.done;
+    } else if (act === "del") {
+      tasks = tasks.filter(x => x.id !== id);
+    }
+    render();
+  });
+
+  render();
+</script>
+</body>
+</html>
