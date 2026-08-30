@@ -3,6 +3,8 @@ tasks.json
 server.pid
 app.log
 app.url
+start.log
+start_error.txt
 tasks.backup.*.json
 
 # Python
