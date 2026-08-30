@@ -28,6 +28,7 @@ STATIC_DIR = os.path.join(BASE_DIR, "static")
 DATA_FILE = os.path.join(BASE_DIR, "tasks.json")
 PID_FILE = os.path.join(BASE_DIR, "server.pid")
 LOG_FILE = os.path.join(BASE_DIR, "app.log")
+URL_FILE = os.path.join(BASE_DIR, "app.url")
 BACKUP_PREFIX = "tasks.backup."
 MAX_CONTENT_LEN = 500
 DEFAULT_PORT = 8000
@@ -384,9 +385,12 @@ def main():
     port = find_free_port()
     server = ThreadingHTTPServer((HOST, port), Handler)
     write_pid()
-    LOGGER.info("服务已启动：http://%s:%d/", HOST, port)
+    url = "http://%s:%d/" % (HOST, port)
+    with open(URL_FILE, "w", encoding="utf-8") as f:
+        f.write(url)
+    LOGGER.info("服务已启动：%s", url)
     try:
-        webbrowser.open("http://%s:%d/" % (HOST, port))
+        webbrowser.open(url)
     except Exception as e:
         LOGGER.warning("自动打开浏览器失败：%s", e)
     try:
@@ -395,11 +399,12 @@ def main():
         pass
     finally:
         server.server_close()
-        if os.path.exists(CONFIG["pid_file"]):
-            try:
-                os.remove(CONFIG["pid_file"])
-            except OSError:
-                pass
+        for f in (CONFIG["pid_file"], URL_FILE):
+            if os.path.exists(f):
+                try:
+                    os.remove(f)
+                except OSError:
+                    pass
         LOGGER.info("服务已停止")
 
 

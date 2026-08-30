@@ -2,6 +2,7 @@
 tasks.json
 server.pid
 app.log
+app.url
 tasks.backup.*.json
 
 # Python
