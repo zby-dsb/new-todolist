@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>每日任务清单 · Demo v1.1</title>
+<style>
+  :root {
+    --bg: #f6efe2;          /* 米色背景 */
+    --card: #fffcf6;        /* 暖白卡片 */
+    --border: #e7dcc6;
+    --text: #3a3226;        /* 暖棕文字 */
+    --muted: #9a8e78;
+    --primary: #cf8a4b;     /* 暖橘强调色 */
+    --primary-hover: #b9763b;
+    --done: #4a9d5b;        /* 完成绿 */
+    --danger: #d96b5b;
+    --shadow: 0 1px 3px rgba(120,90,40,.08), 0 10px 28px rgba(120,90,40,.06);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+    padding: 36px 16px;
+  }
+  .wrap { max-width: 680px; margin: 0 auto; }
+  header { text-align: center; margin-bottom: 20px; }
+  header h1 {
+    font-size: 32px; font-weight: 800; margin: 0 0 6px;
+    letter-spacing: 1px; color: #5a4a32;
+  }
+  header p.sub { color: var(--muted); font-size: 13px; margin: 0; }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    padding: 20px;
+  }
+
+  /* —— 日期导航 —— */
+  .date-nav {
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    margin-bottom: 14px;
+  }
+  .date-nav .nav-btn {
+    background: var(--card); border: 1px solid var(--border); color: var(--text);
+    border-radius: 9px; padding: 7px 12px; font-size: 14px; cursor: pointer;
+  }
+  .date-nav .nav-btn:hover:not(:disabled) { border-color: var(--primary); color: var(--primary); }
+  .date-nav .nav-btn:disabled { opacity: .4; cursor: not-allowed; }
+  .date-nav .date-label { font-size: 16px; font-weight: 700; color: #5a4a32; min-width: 200px; text-align: center; }
+  .date-nav .date-label .tag-today {
+    font-size: 11px; font-weight: 600; color: #fff; background: var(--primary);
+    border-radius: 999px; padding: 1px 8px; margin-left: 6px; vertical-align: middle;
+  }
+  .date-nav .date-label .tag-hist {
+    font-size: 11px; font-weight: 600; color: var(--muted);
+    border: 1px solid var(--border); border-radius: 999px; padding: 1px 8px; margin-left: 6px; vertical-align: middle;
+  }
+
+  .stats { font-size: 13px; color: var(--muted); margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
+  .stats .stats-btn {
+    background: transparent; border: 1px solid var(--border); color: var(--primary);
+    border-radius: 8px; padding: 5px 12px; font-size: 13px; cursor: pointer; font-weight: 600;
+  }
+  .stats .stats-btn:hover { background: #fbf3df; }
+
+  ul.list { list-style: none; margin: 0 0 0; padding: 0; }
+  li.item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 6px; border-top: 1px solid var(--border);
+  }
+  li.item:first-child { border-top: none; }
+  .check {
+    width: 22px; height: 22px; border: 2px solid var(--border);
+    border-radius: 7px; cursor: pointer; flex: none; display: grid; place-items: center;
+    color: #fff; font-size: 14px; transition: all .15s;
+  }
+  .item.done .check { background: var(--done); border-color: var(--done); }
+  .item.done .content { color: var(--muted); text-decoration: line-through; }
+  .content { flex: 1; font-size: 15px; word-break: break-all; cursor: text; border-radius: 6px; padding: 2px 4px; }
+  .content:hover { background: #fbf3df; }
+  .content-input {
+    flex: 1; font-size: 15px; padding: 6px 8px; border: 1px solid var(--primary);
+    border-radius: 6px; outline: none; background: #fffdf8;
+  }
+  .id-tag { color: var(--muted); font-size: 12px; width: 28px; flex: none; }
+  .btn-del {
+    background: transparent; color: var(--danger); padding: 6px 10px; font-size: 13px;
+    border-radius: 8px; border: none; cursor: pointer;
+  }
+  .btn-del:hover { background: #fbeae6; }
+
+  /* 输入区（仅今天显示） */
+  .add-row { display: flex; gap: 8px; padding-top: 16px; margin-top: 16px; border-top: 2px dashed var(--border); }
+  .add-row input {
+    flex: 1; padding: 11px 12px; font-size: 14px;
+    border: 1px solid var(--border); border-radius: 9px; outline: none; background: #fffdf8;
+  }
+  .add-row input:focus { border-color: var(--primary); }
+  button.primary {
+    font-size: 14px; cursor: pointer; border: none; border-radius: 9px;
+    padding: 11px 18px; transition: background .15s; background: var(--primary); color: #fff; font-weight: 600;
+  }
+  button.primary:hover { background: var(--primary-hover); }
+
+  .hist-note { text-align: center; color: var(--muted); font-size: 13px; padding: 14px 0; }
+  .empty { color: var(--muted); text-align: center; padding: 22px 0; font-size: 14px; }
+
+  /* 统计面板 */
+  .panel { margin-top: 16px; border-top: 1px solid var(--border); padding-top: 16px; display: none; }
+  .panel.open { display: block; }
+  .panel h3 { margin: 0 0 12px; font-size: 15px; color: #5a4a32; }
+  .metric-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 16px; }
+  .metric {
+    background: #fbf3df; border: 1px solid var(--border); border-radius: 10px; padding: 12px;
+  }
+  .metric .v { font-size: 22px; font-weight: 800; color: var(--primary); }
+  .metric .k { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .trend-title { font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+
+  .note {
+    margin-top: 16px; font-size: 12px; color: #8a7a55;
+    background: #fbf3df; border: 1px solid #efdcae; border-radius: 8px; padding: 10px 12px;
+  }
+  .flow { display: flex; gap: 8px; margin: 18px 0 0; flex-wrap: wrap; justify-content: center; }
+  .flow .step {
+    font-size: 12px; color: #8a7a55; background: var(--card);
+    border: 1px solid var(--border); border-radius: 999px; padding: 4px 12px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>每日任务清单</h1>
+    <p class="sub">Demo v1.1 · 模拟数据，仅用于确认界面与操作流程（未接真实后端）</p>
+  </header>
+
+  <div class="card">
+    <!-- 日期导航 -->
+    <div class="date-nav">
+      <button class="nav-btn" id="prevBtn">‹ 前一天</button>
+      <div class="date-label" id="dateLabel"></div>
+      <button class="nav-btn" id="nextBtn">后一天 ›</button>
+      <button class="nav-btn" id="todayBtn">今天</button>
+    </div>
+
+    <div class="stats">
+      <span id="statsText">共 0 项 · 已完成 0 项</span>
+      <button class="stats-btn" id="statsToggle">📊 统计</button>
+    </div>
+
+    <ul class="list" id="list"></ul>
+
+    <!-- 仅“今天”显示添加框；历史日期显示提示 -->
+    <div id="addArea"></div>
+
+    <!-- 统计面板 -->
+    <div class="panel" id="statsPanel">
+      <h3>打卡与回顾</h3>
+      <div class="metric-grid">
+        <div class="metric"><div class="v" id="mToday">0/0</div><div class="k">今日完成 / 总数</div></div>
+        <div class="metric"><div class="v" id="mWeek">0</div><div class="k">本周完成</div></div>
+        <div class="metric"><div class="v" id="mStreak">0</div><div class="k">连续打卡（天）</div></div>
+        <div class="metric"><div class="v" id="mRate">0%</div><div class="k">今日完成率</div></div>
+      </div>
+      <div class="trend-title">近 7 天完成趋势</div>
+      <div id="trendChart"></div>
+    </div>
+
+    <div class="note">
+      ⚠️ 这是演示版：数据为前端模拟（含近一周多日期样例），<b>刷新页面会重置</b>，未接入真实后端 / 存储。
+      目的只是先看界面与操作流程是否合理。
+    </div>
+
+    <div class="flow">
+      <span class="step">① 切换日期</span>
+      <span class="step">② 添加（仅今天）</span>
+      <span class="step">③ 完成 / 编辑</span>
+      <span class="step">④ 看统计</span>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ===================== 工具 =====================
+  const WEEK = ["周日","周一","周二","周三","周四","周五","周六"];
+  function startOfDay(d){ const x = new Date(d); x.setHours(0,0,0,0); return x; }
+  function addDays(d, n){ const x = new Date(d); x.setDate(x.getDate()+n); return x; }
+  function ymd(d){ const x = startOfDay(d); return x.getFullYear()+"-"+String(x.getMonth()+1).padStart(2,"0")+"-"+String(x.getDate()).padStart(2,"0"); }
+  function fmtCN(d){ const x = startOfDay(d); return x.getFullYear()+"年"+(x.getMonth()+1)+"月"+x.getDate()+"日 "+WEEK[x.getDay()]; }
+  function escapeHtml(s){ return s.replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c])); }
+
+  const TODAY = startOfDay(new Date());
+
+  // ===================== 模拟数据（多日期） =====================
+  // [相对今天的天数, 内容, 是否完成]
+  const SEED = [
+    [0, "复习 STM32 定时器", false],
+    [0, "写操作系统实验报告", true],
+    [0, "健身 30 分钟", true],
+    [-1, "读《代码整洁之道》一章", true],
+    [-1, "整理 GitHub 仓库 README", true],
+    [-1, "背 30 个英语单词", true],
+    [-1, "调试串口通信 bug", false],
+    [-2, "完成数据结构作业", true],
+    [-2, "跑步 5 公里", true],
+    [-3, "看操作系统中断视频", true],
+    [-3, "写博客草稿", false],
+    [-3, "整理课堂笔记", false],
+    [-5, "复习高数第三章", true],
+    [-5, "健身", true],
+    [-6, "刷 LeetCode 2 题", true],
+    [-6, "读论文摘要", true],
+    [-6, "整理桌面文件", true],
+    [-7, "背单词", true],
+  ];
+  let tasks = SEED.map((s, i) => {
+    const date = addDays(TODAY, s[0]);
+    return {
+      id: i + 1,
+      content: s[1],
+      done: s[2],
+      date: ymd(date),
+      completed_at: s[2] ? ymd(date) + "T20:00:00" : null,
+    };
+  });
+  let nextId = tasks.length + 1;
+
+  // ===================== 状态 =====================
+  let viewDate = TODAY;       // 当前查看的日期
+  let editingId = null;       // 正在就地编辑的任务 id
+
+  // ===================== DOM =====================
+  const listEl = document.getElementById("list");
+  const statsTextEl = document.getElementById("statsText");
+  const dateLabelEl = document.getElementById("dateLabel");
+  const addAreaEl = document.getElementById("addArea");
+  const prevBtn = document.getElementById("prevBtn");
+  const nextBtn = document.getElementById("nextBtn");
+  const todayBtn = document.getElementById("todayBtn");
+  const statsToggle = document.getElementById("statsToggle");
+  const statsPanel = document.getElementById("statsPanel");
+
+  function isToday(d){ return ymd(d) === ymd(TODAY); }
+
+  // ===================== 渲染 =====================
+  function render() {
+    const vd = ymd(viewDate);
+    const dayTasks = tasks.filter(t => t.date === vd);
+
+    // 日期标签
+    const isT = isToday(viewDate);
+    dateLabelEl.innerHTML = fmtCN(viewDate) + (isT
+      ? '<span class="tag-today">今天</span>'
+      : '<span class="tag-hist">历史</span>');
+
+    // 上/下一天按钮可用性：不超今天
+    prevBtn.disabled = false;
+    nextBtn.disabled = isT;
+
+    // 添加区：仅今天
+    if (isT) {
+      addAreaEl.innerHTML = `
+        <div class="add-row">
+          <input id="taskInput" type="text" placeholder="输入新任务，回车或点“添加”（仅可加到今天）" />
+          <button class="primary" id="addBtn">添加</button>
+        </div>`;
+      const inputEl = document.getElementById("taskInput");
+      const addBtn = document.getElementById("addBtn");
+      const doAdd = () => {
+        const v = inputEl.value.trim();
+        if (!v) return;
+        tasks.push({ id: nextId++, content: v, done: false, date: ymd(TODAY), completed_at: null });
+        inputEl.value = "";
+        render();
+      };
+      addBtn.addEventListener("click", doAdd);
+      inputEl.addEventListener("keydown", e => { if (e.key === "Enter") doAdd(); });
+    } else {
+      addAreaEl.innerHTML = `<div class="hist-note">📅 历史日期，仅可查看；新增任务请回到「今天」</div>`;
+    }
+
+    // 列表
+    listEl.innerHTML = "";
+    if (dayTasks.length === 0) {
+      listEl.innerHTML = `<div class="empty">${isT ? "今天还没有任务，在下方添加一个吧 →" : "这一天没有任务记录"}</div>`;
+    } else {
+      dayTasks.forEach(t => {
+        const li = document.createElement("li");
+        li.className = "item" + (t.done ? " done" : "");
+        let contentHtml;
+        if (editingId === t.id) {
+          contentHtml = `<input class="content-input" data-act="edit-input" data-id="${t.id}" value="${escapeHtml(t.content)}" />`;
+        } else {
+          contentHtml = `<span class="content" data-act="edit" data-id="${t.id}">${escapeHtml(t.content)}</span>`;
+        }
+        li.innerHTML = `
+          <span class="id-tag">#${t.id}</span>
+          <span class="check" data-act="toggle" data-id="${t.id}">${t.done ? "✓" : ""}</span>
+          ${contentHtml}
+          <button class="btn-del" data-act="del" data-id="${t.id}">删除</button>
+        `;
+        listEl.appendChild(li);
+      });
+    }
+
+    // 统计行
+    const doneCount = dayTasks.filter(t => t.done).length;
+    statsTextEl.textContent = `共 ${dayTasks.length} 项 · 已完成 ${doneCount} 项`;
+
+    if (editingId !== null) {
+      const inp = listEl.querySelector('[data-act="edit-input"]');
+      if (inp) { inp.focus(); inp.setSelectionRange(inp.value.length, inp.value.length); }
+    }
+  }
+
+  // ===================== 统计计算 =====================
+  function computeStats() {
+    const doneOn = (dateStr) => tasks.filter(t => t.date === dateStr && t.done).length;
+    const totalOn = (dateStr) => tasks.filter(t => t.date === dateStr).length;
+
+    const todayStr = ymd(TODAY);
+    const todayDone = doneOn(todayStr);
+    const todayTotal = totalOn(todayStr);
+
+    // 本周（周一~周日）
+    const dow = TODAY.getDay(); // 0=周日
+    const weekStart = addDays(TODAY, dow === 0 ? -6 : 1 - dow);
+    let weekDone = 0;
+    for (let i = 0; i < 7; i++) weekDone += doneOn(ymd(addDays(weekStart, i)));
+
+    // 连续打卡：从今天往前，连续有完成的日数
+    let streak = 0;
+    let cur = TODAY;
+    while (doneOn(ymd(cur)) > 0) { streak++; cur = addDays(cur, -1); }
+
+    const rate = todayTotal ? Math.round(todayDone / todayTotal * 100) : 0;
+
+    // 近 7 天趋势（含今天）
+    const trend = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = addDays(TODAY, -i);
+      trend.push({ date: d, label: (d.getMonth()+1) + "/" + d.getDate(), count: doneOn(ymd(d)), isToday: i === 0 });
+    }
+    return { todayDone, todayTotal, weekDone, streak, rate, trend };
+  }
+
+  function renderStats() {
+    const s = computeStats();
+    document.getElementById("mToday").textContent = s.todayDone + "/" + s.todayTotal;
+    document.getElementById("mWeek").textContent = s.weekDone;
+    document.getElementById("mStreak").textContent = s.streak;
+    document.getElementById("mRate").textContent = s.rate + "%";
+
+    // 纯 SVG 趋势条
+    const W = 600, H = 150, padB = 26, padT = 18;
+    const max = Math.max(1, ...s.trend.map(t => t.count));
+    const bw = (W - 20) / 7;
+    let bars = "";
+    s.trend.forEach((t, i) => {
+      const x = 10 + i * bw;
+      const h = t.count / max * (H - padB - padT);
+      const y = H - padB - h;
+      const fill = t.isToday ? "#cf8a4b" : "#d9b98c";
+      bars += `<rect x="${x+6}" y="${y}" width="${bw-12}" height="${h}" rx="4" fill="${fill}"></rect>`;
+      bars += `<text x="${x+bw/2}" y="${y-4}" font-size="11" fill="#9a8e78" text-anchor="middle">${t.count}</text>`;
+      bars += `<text x="${x+bw/2}" y="${H-8}" font-size="10" fill="#9a8e78" text-anchor="middle">${t.label}</text>`;
+    });
+    document.getElementById("trendChart").innerHTML =
+      `<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:${W}px;display:block;margin:0 auto;">${bars}</svg>`;
+  }
+
+  // ===================== 交互 =====================
+  prevBtn.addEventListener("click", () => { viewDate = addDays(viewDate, -1); editingId = null; render(); });
+  nextBtn.addEventListener("click", () => { if (!isToday(viewDate)) { viewDate = addDays(viewDate, 1); editingId = null; render(); } });
+  todayBtn.addEventListener("click", () => { viewDate = TODAY; editingId = null; render(); });
+
+  statsToggle.addEventListener("click", () => {
+    const open = statsPanel.classList.toggle("open");
+    statsToggle.textContent = open ? "📊 收起" : "📊 统计";
+    if (open) renderStats();
+  });
+
+  listEl.addEventListener("click", e => {
+    const el = e.target.closest("[data-act]");
+    if (!el) return;
+    const id = Number(el.dataset.id);
+    const act = el.dataset.act;
+    const t = tasks.find(x => x.id === id);
+    if (!t) return;
+    if (act === "toggle") {
+      t.done = !t.done;
+      t.completed_at = t.done ? new Date().toISOString().slice(0,19) : null;
+      render();
+    } else if (act === "del") {
+      tasks = tasks.filter(x => x.id !== id);
+      render();
+    } else if (act === "edit") {
+      editingId = id;
+      render();
+    }
+  });
+
+  // 就地编辑：回车保存 / Esc 取消 / 失焦保存
+  listEl.addEventListener("keydown", e => {
+    const el = e.target.closest('[data-act="edit-input"]');
+    if (!el) return;
+    const id = Number(el.dataset.id);
+    if (e.key === "Enter") {
+      const t = tasks.find(x => x.id === id);
+      const v = el.value.trim();
+      if (t && v) t.content = v;
+      editingId = null; render();
+    } else if (e.key === "Escape") {
+      editingId = null; render();
+    }
+  });
+  listEl.addEventListener("blur", e => {
+    const el = e.target.closest('[data-act="edit-input"]');
+    if (!el) return;
+    const id = Number(el.dataset.id);
+    const t = tasks.find(x => x.id === id);
+    const v = el.value.trim();
+    if (t && v) t.content = v;   // 失焦也保存
+    if (editingId === id) { editingId = null; render(); }
+  }, true);
+
+  render();
+</script>
+</body>
+</html>
