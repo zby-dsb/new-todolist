@@ -181,7 +181,8 @@
     </div>
 
     <div class="note">
-      数据保存在本机 <code>tasks.json</code>，不联网、不云同步。每次改动自动备份到 <code>backup/</code> 目录；导入前也会自动备份，可放心恢复。
+      数据保存在本机 <code>tasks.json</code>，不联网、不云同步。每次改动自动备份到 <code>backup/</code> 目录；导入前也会自动备份，可放心恢复。<br />
+      <strong>双击</strong>任务文字可就地修改：回车保存、Esc 取消、点页面别处也会保存（用中文输入法时，先按回车选词上屏，再按回车保存）。
     </div>
   </div>
 
@@ -301,7 +302,7 @@
         li.innerHTML = `
           <span class="id-tag">#${t.id}</span>
           <span class="check" data-act="toggle" data-id="${t.id}">${t.done ? "✓" : ""}</span>
-          <span class="content" data-content="${escapeHtml(t.content)}">${escapeHtml(t.content)}</span>
+          <span class="content" data-content="${escapeHtml(t.content)}" title="双击可编辑">${escapeHtml(t.content)}</span>
           <button class="btn-del" data-act="del" data-id="${t.id}" type="button">删除</button>
         `;
         listEl.appendChild(li);
@@ -347,7 +348,7 @@
     }
   }
 
-  // —— 就地编辑 ——
+  // —— 就地编辑（双击触发；回车保存但兼容中文输入法）——
   function startEdit(span) {
     if (span.querySelector && span.querySelector("input")) return;
     const li = span.closest("li");
@@ -356,32 +357,58 @@
     const input = document.createElement("input");
     input.className = "edit-input";
     input.value = orig;
+    input.maxLength = 500;
     span.replaceWith(input);
     input.focus();
     input.select();
     let finished = false;
-    function commit() {
+
+    // byBlur=true 表示由失焦触发；此时无法停留在编辑态（会抢焦点），故还原
+    function commit(byBlur) {
       if (finished) return;
-      finished = true;
       const v = input.value.trim();
-      if (!v) { cancel(); return; }
-      api.edit(id, v).then(() => load()).catch(err => { toast(err.message); cancel(); });
+      if (!v) {
+        // 空内容：绝不静默丢弃
+        if (byBlur) {
+          finished = true;
+          toast("内容为空，已还原原文");
+          load();
+        } else {
+          toast("任务内容不能为空");
+          input.focus();
+        }
+        return;
+      }
+      finished = true;
+      api.edit(id, v).then(() => load()).catch(err => { toast(err.message); load(); });
     }
+
     function cancel() {
       if (finished) return;
       finished = true;
       load();
     }
+
     input.addEventListener("keydown", ev => {
-      if (ev.key === "Enter") { ev.preventDefault(); commit(); }
+      // 中文输入法组字/选词中：把 Enter、Esc 交给输入法，不拦截
+      // isComposing 为标准属性；keyCode 229 为旧内核/部分输入法的兜底判断
+      if (ev.isComposing || ev.keyCode === 229) return;
+      if (ev.key === "Enter") { ev.preventDefault(); commit(false); }
       else if (ev.key === "Escape") { ev.preventDefault(); cancel(); }
     });
-    input.addEventListener("blur", commit);
+    // 组字结束（候选词上屏）后按 Enter 才会走到上面的保存分支
+    input.addEventListener("compositionend", () => { /* 无需处理，等待下一次 Enter */ });
+    input.addEventListener("blur", () => commit(true));
   }
+
+  // 双击任务文字进入编辑（单击不触发，避免误触、也方便选中复制文字）
+  listEl.addEventListener("dblclick", e => {
+    const t = e.target;
+    if (t.classList.contains("content")) startEdit(t);
+  });
 
   listEl.addEventListener("click", async e => {
     const t = e.target;
-    if (t.classList.contains("content")) { startEdit(t); return; }
     const el = t.closest("[data-act]");
     if (!el) return;
     const id = Number(el.dataset.id);

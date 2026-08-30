@@ -433,5 +433,33 @@ class HttpTest(unittest.TestCase):
         self.assertTrue(len(files) >= 1)
 
 
+class FrontendTest(unittest.TestCase):
+    """前端「就地编辑」交互的关键标记回归检查（防止改回去）。"""
+
+    @classmethod
+    def setUpClass(cls):
+        root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        with open(os.path.join(root, "static", "index.html"), "r", encoding="utf-8") as f:
+            cls.html = f.read()
+
+    def test_edit_triggered_by_dblclick(self):
+        self.assertIn('addEventListener("dblclick"', self.html)
+
+    def test_single_click_no_longer_starts_edit(self):
+        # 旧实现：单击即进入编辑（会被中文输入法的回车选词打断）
+        self.assertNotIn(
+            'if (t.classList.contains("content")) { startEdit(t); return; }', self.html)
+
+    def test_ime_composition_guard_present(self):
+        # 组字/选词中的 Enter 必须交给输入法，不能被当成保存
+        self.assertIn("ev.isComposing", self.html)
+        self.assertIn("229", self.html)
+
+    def test_empty_content_not_silently_dropped(self):
+        # 空白内容必须有提示，不能静默放弃修改
+        self.assertIn("任务内容不能为空", self.html)
+        self.assertIn("内容为空，已还原原文", self.html)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
