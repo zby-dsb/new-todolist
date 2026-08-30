@@ -79,11 +79,15 @@ if not defined UP (
     pause
     exit /b 1
 )
-echo Started. Opening your browser...
+echo Started. The server is running in the background.
 if exist app.url (
     set /p URL=<app.url
-    if defined URL start "" %URL%
 ) else (
-    start "" http://127.0.0.1:8000/
+    set "URL=http://127.0.0.1:8000/"
 )
-ping -n 3 127.0.0.1 >nul
+echo Opening your browser now: %URL%
+start "" %URL%
+echo.
+echo If the browser did not open, copy the address above into your browser.
+echo Closing this window will NOT stop the server. Use stop.bat to stop it.
+pause
