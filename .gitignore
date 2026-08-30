@@ -1,0 +1,12 @@
+# 运行态 / 个人数据（避免提交进仓库）
+tasks.json
+server.pid
+app.log
+tasks.backup.*.json
+
+# Python
+__pycache__/
+*.pyc
+
+# 代理/工具内部目录（非项目代码）
+.workbuddy/
