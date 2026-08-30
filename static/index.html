@@ -28,22 +28,45 @@
     padding: 36px 16px;
   }
   .wrap { max-width: 640px; margin: 0 auto; }
-  header { text-align: center; margin-bottom: 22px; }
+  header { text-align: center; margin-bottom: 18px; }
   header h1 {
     font-size: 34px; font-weight: 800; margin: 0 0 6px;
     letter-spacing: 1px; color: #5a4a32;
   }
   header p.date { color: var(--primary); font-size: 14px; margin: 0; font-weight: 600; }
+
   .card {
     background: var(--card);
     border: 1px solid var(--border);
     border-radius: 14px;
     box-shadow: var(--shadow);
-    padding: 20px;
+    padding: 18px;
   }
+
+  /* 日期导航条 */
+  .datenav {
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 12px; flex-wrap: wrap;
+  }
+  .datenav .nav-btn {
+    cursor: pointer; border: 1px solid var(--border); background: var(--card);
+    color: var(--text); border-radius: 9px; padding: 7px 12px; font-size: 13px;
+    transition: background .15s;
+  }
+  .datenav .nav-btn:hover { background: #f3ead8; }
+  .datenav .viewed {
+    margin-left: auto; font-size: 14px; font-weight: 700; color: #5a4a32;
+    font-variant-numeric: tabular-nums;
+  }
+  .banner {
+    font-size: 12px; color: #8a6d3b; background: #fbf3df;
+    border: 1px solid #efdcae; border-radius: 8px;
+    padding: 8px 12px; margin-bottom: 12px;
+  }
+
   .stats { font-size: 13px; color: var(--muted); margin-bottom: 12px; }
 
-  .toolbar { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+  .toolbar { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; align-items: center; }
   .btn {
     font-size: 13px; cursor: pointer; border-radius: 9px;
     padding: 8px 14px; transition: background .15s, color .15s;
@@ -51,6 +74,7 @@
     text-decoration: none; display: inline-block;
   }
   .btn:hover { background: #f3ead8; }
+  .btn-stat { margin-left: auto; }
 
   ul.list { list-style: none; margin: 0 0 18px; padding: 0; }
   li.item {
@@ -65,13 +89,17 @@
   }
   .item.done .check { background: var(--done); border-color: var(--done); }
   .item.done .content { color: var(--muted); text-decoration: line-through; }
-  .content { flex: 1; font-size: 15px; word-break: break-all; }
+  .content { flex: 1; font-size: 15px; word-break: break-all; cursor: text; }
   .id-tag { color: var(--muted); font-size: 12px; width: 28px; flex: none; }
   .btn-del {
     background: transparent; color: var(--danger); padding: 6px 10px; font-size: 13px;
     border: none; border-radius: 8px; cursor: pointer;
   }
   .btn-del:hover { background: #fbeae6; }
+  .edit-input {
+    flex: 1; padding: 9px 10px; font-size: 15px; font-family: inherit;
+    border: 1px solid var(--primary); border-radius: 8px; outline: none; background: #fffdf8;
+  }
 
   .add-row {
     display: flex; gap: 8px; padding-top: 16px; border-top: 2px dashed var(--border);
@@ -95,6 +123,21 @@
     background: #fbf3df; border: 1px solid #efdcae; border-radius: 8px; padding: 10px 12px;
   }
 
+  /* 统计面板 */
+  .stats-panel {
+    margin-top: 16px; background: var(--card); border: 1px solid var(--border);
+    border-radius: 14px; box-shadow: var(--shadow); padding: 18px;
+  }
+  .stats-panel h2 { margin: 0 0 14px; font-size: 18px; color: #5a4a32; }
+  .metric-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 16px; }
+  .metric {
+    background: #fbf4e6; border: 1px solid #ecdcbe; border-radius: 10px;
+    padding: 12px 14px; text-align: center;
+  }
+  .metric .num { font-size: 26px; font-weight: 800; color: var(--primary); font-variant-numeric: tabular-nums; }
+  .metric .lbl { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .chart-title { font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+
   .toast {
     position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%) translateY(20px);
     background: #5a4a32; color: #fff; padding: 10px 18px; border-radius: 10px;
@@ -112,24 +155,42 @@
   </header>
 
   <div class="card">
+    <!-- 日期导航条 -->
+    <div class="datenav">
+      <button class="nav-btn" id="prevBtn" type="button">‹ 前一天</button>
+      <button class="nav-btn" id="todayBtn" type="button">今天</button>
+      <button class="nav-btn" id="nextBtn" type="button">后一天 ›</button>
+      <span class="viewed" id="viewedDate"></span>
+    </div>
+    <div class="banner" id="historyBanner" hidden>历史日期 · 仅不能「新增」任务（可勾选完成 / 编辑内容 / 删除）</div>
+
     <div class="stats" id="stats">共 0 项 · 已完成 0 项</div>
 
     <div class="toolbar">
       <a class="btn" href="/api/export" download="tasks.json">导出备份</a>
       <button class="btn" id="importBtn" type="button">导入备份</button>
       <input type="file" id="importFile" accept=".json,application/json" hidden />
+      <button class="btn btn-stat" id="statBtn" type="button">📊 统计</button>
     </div>
 
     <ul class="list" id="list"></ul>
 
-    <div class="add-row">
+    <div class="add-row" id="addRow">
       <input id="taskInput" type="text" placeholder="输入新任务，回车或点“添加”" maxlength="500" />
       <button class="btn-primary" id="addBtn" type="button">添加</button>
     </div>
 
     <div class="note">
-      数据保存在本机 <code>tasks.json</code>，不联网、不云同步。导入前会自动备份当前清单，可放心恢复。
+      数据保存在本机 <code>tasks.json</code>，不联网、不云同步。每次改动自动备份到 <code>backup/</code> 目录；导入前也会自动备份，可放心恢复。
     </div>
+  </div>
+
+  <!-- 统计面板 -->
+  <div class="stats-panel" id="statsPanel" hidden>
+    <h2>📊 统计与打卡回顾</h2>
+    <div class="metric-grid" id="metricGrid"></div>
+    <div class="chart-title">近 7 天完成数（按实际完成时间）</div>
+    <div id="chart"></div>
   </div>
 </div>
 
@@ -138,8 +199,8 @@
 <script>
   // —— 接口封装 ——
   const api = {
-    async list() {
-      const r = await fetch("/api/tasks");
+    async list(date) {
+      const r = await fetch("/api/tasks?date=" + encodeURIComponent(date));
       return r.json();
     },
     async add(content) {
@@ -156,9 +217,23 @@
       if (!r.ok) throw new Error("操作失败");
       return r.json();
     },
+    async edit(id, content) {
+      const r = await fetch(`/api/tasks/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content }),
+      });
+      if (!r.ok) throw new Error((await r.json()).error || "保存失败");
+      return r.json();
+    },
     async remove(id) {
       const r = await fetch(`/api/tasks/${id}`, { method: "DELETE" });
       if (!r.ok) throw new Error("删除失败");
+      return r.json();
+    },
+    async stats() {
+      const r = await fetch("/api/stats");
+      if (!r.ok) throw new Error("统计数据获取失败");
       return r.json();
     },
   };
@@ -166,18 +241,38 @@
   const listEl = document.getElementById("list");
   const statsEl = document.getElementById("stats");
   const dateEl = document.getElementById("date");
+  const viewedEl = document.getElementById("viewedDate");
+  const bannerEl = document.getElementById("historyBanner");
+  const addRowEl = document.getElementById("addRow");
   const inputEl = document.getElementById("taskInput");
   const addBtn = document.getElementById("addBtn");
   const importBtn = document.getElementById("importBtn");
   const importFile = document.getElementById("importFile");
+  const statBtn = document.getElementById("statBtn");
+  const statsPanel = document.getElementById("statsPanel");
+  const metricGrid = document.getElementById("metricGrid");
+  const chartEl = document.getElementById("chart");
   const toastEl = document.getElementById("toast");
 
   let tasks = [];
+  let todayStr = "";
+  let viewed = "";
 
   function escapeHtml(s) {
     return String(s).replace(/[&<>"']/g, c => ({
       "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
     }[c]));
+  }
+
+  function pad(n) { return n < 10 ? "0" + n : "" + n; }
+  function fmtDate(d) { return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()); }
+  function getTodayStr() { return fmtDate(new Date()); }
+
+  function shiftDate(n) {
+    const [y, m, d] = viewed.split("-").map(Number);
+    const dt = new Date(y, m - 1, d);
+    dt.setDate(dt.getDate() + n);
+    return fmtDate(dt);
   }
 
   function toast(msg) {
@@ -187,7 +282,7 @@
     toast._t = setTimeout(() => toastEl.classList.remove("show"), 3200);
   }
 
-  function renderDate() {
+  function renderHeaderDate() {
     const now = new Date();
     dateEl.textContent = now.toLocaleDateString("zh-CN", {
       year: "numeric", month: "long", day: "numeric", weekday: "long",
@@ -197,15 +292,16 @@
   function render() {
     listEl.innerHTML = "";
     if (tasks.length === 0) {
-      listEl.innerHTML = '<div class="empty">还没有任务，在下面添加一个吧～</div>';
+      listEl.innerHTML = '<div class="empty">这一天还没有任务～</div>';
     } else {
       tasks.forEach(t => {
         const li = document.createElement("li");
         li.className = "item" + (t.done ? " done" : "");
+        li.dataset.id = t.id;
         li.innerHTML = `
           <span class="id-tag">#${t.id}</span>
           <span class="check" data-act="toggle" data-id="${t.id}">${t.done ? "✓" : ""}</span>
-          <span class="content">${escapeHtml(t.content)}</span>
+          <span class="content" data-content="${escapeHtml(t.content)}">${escapeHtml(t.content)}</span>
           <button class="btn-del" data-act="del" data-id="${t.id}" type="button">删除</button>
         `;
         listEl.appendChild(li);
@@ -213,12 +309,26 @@
     }
     const done = tasks.filter(t => t.done).length;
     statsEl.textContent = `共 ${tasks.length} 项 · 已完成 ${done} 项`;
+
+    // 历史日期：隐藏新增框，显示提示
+    const isToday = viewed === todayStr;
+    addRowEl.hidden = !isToday;
+    bannerEl.hidden = isToday;
+    if (!isToday) {
+      const dt = new Date(viewed.split("-").map(Number)[0], viewed.split("-").map(Number)[1] - 1, viewed.split("-").map(Number)[2]);
+      const label = dt.toLocaleDateString("zh-CN", { year: "numeric", month: "long", day: "numeric", weekday: "long" });
+      viewedEl.textContent = label;
+    } else {
+      viewedEl.textContent = "今天";
+    }
   }
 
   async function load() {
     try {
-      const data = await api.list();
+      const data = await api.list(viewed);
       tasks = data.tasks || [];
+      todayStr = data.today;
+      viewed = data.viewed || viewed;
       render();
     } catch (e) {
       toast("加载失败：" + e.message);
@@ -237,11 +347,42 @@
     }
   }
 
-  addBtn.addEventListener("click", addTask);
-  inputEl.addEventListener("keydown", e => { if (e.key === "Enter") addTask(); });
+  // —— 就地编辑 ——
+  function startEdit(span) {
+    if (span.querySelector && span.querySelector("input")) return;
+    const li = span.closest("li");
+    const id = Number(li.dataset.id);
+    const orig = span.dataset.content;
+    const input = document.createElement("input");
+    input.className = "edit-input";
+    input.value = orig;
+    span.replaceWith(input);
+    input.focus();
+    input.select();
+    let finished = false;
+    function commit() {
+      if (finished) return;
+      finished = true;
+      const v = input.value.trim();
+      if (!v) { cancel(); return; }
+      api.edit(id, v).then(() => load()).catch(err => { toast(err.message); cancel(); });
+    }
+    function cancel() {
+      if (finished) return;
+      finished = true;
+      load();
+    }
+    input.addEventListener("keydown", ev => {
+      if (ev.key === "Enter") { ev.preventDefault(); commit(); }
+      else if (ev.key === "Escape") { ev.preventDefault(); cancel(); }
+    });
+    input.addEventListener("blur", commit);
+  }
 
   listEl.addEventListener("click", async e => {
-    const el = e.target.closest("[data-act]");
+    const t = e.target;
+    if (t.classList.contains("content")) { startEdit(t); return; }
+    const el = t.closest("[data-act]");
     if (!el) return;
     const id = Number(el.dataset.id);
     const act = el.dataset.act;
@@ -253,6 +394,63 @@
       toast(err.message);
     }
   });
+
+  addBtn.addEventListener("click", addTask);
+  inputEl.addEventListener("keydown", e => { if (e.key === "Enter") addTask(); });
+
+  // 日期导航
+  document.getElementById("prevBtn").addEventListener("click", () => { viewed = shiftDate(-1); load(); });
+  document.getElementById("nextBtn").addEventListener("click", () => { viewed = shiftDate(1); load(); });
+  document.getElementById("todayBtn").addEventListener("click", () => { viewed = getTodayStr(); load(); });
+
+  // 统计面板
+  statBtn.addEventListener("click", async () => {
+    if (!statsPanel.hidden) { statsPanel.hidden = true; return; }
+    try {
+      const s = await api.stats();
+      renderStats(s);
+      statsPanel.hidden = false;
+    } catch (e) {
+      toast(e.message);
+    }
+  });
+
+  function renderStats(s) {
+    const ratePct = Math.round((s.today_rate || 0) * 100);
+    const metrics = [
+      { num: s.today_done + " / " + s.today_total, lbl: "今日完成 / 总数" },
+      { num: s.week_done, lbl: "本周完成" },
+      { num: s.streak + " 天", lbl: "连续打卡" },
+      { num: ratePct + "%", lbl: "今日完成率" },
+    ];
+    metricGrid.innerHTML = metrics.map(m =>
+      `<div class="metric"><div class="num">${escapeHtml(String(m.num))}</div><div class="lbl">${escapeHtml(m.lbl)}</div></div>`
+    ).join("");
+    chartEl.innerHTML = buildTrendSvg(s.trend || []);
+  }
+
+  function buildTrendSvg(trend) {
+    const w = 300, h = 150, padX = 18, padTop = 18, padBottom = 22;
+    const n = trend.length || 1;
+    const max = Math.max(1, ...trend.map(d => d.done || 0));
+    const gap = (w - padX * 2) / n;
+    const bw = Math.min(26, gap * 0.6);
+    let bars = "";
+    trend.forEach((d, i) => {
+      const x = padX + i * gap + (gap - bw) / 2;
+      const bh = max ? ((d.done || 0) / max) * (h - padTop - padBottom) : 0;
+      const y = h - padBottom - bh;
+      const isToday = d.date === getTodayStr();
+      const fill = isToday ? "#cf8a4b" : "#c9b48f";
+      bars += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${bh.toFixed(1)}" rx="3" fill="${fill}"></rect>`;
+      const label = d.date.slice(5); // MM-DD
+      bars += `<text x="${(x + bw / 2).toFixed(1)}" y="${h - 6}" font-size="9" text-anchor="middle" fill="#9a8e78">${escapeHtml(label)}</text>`;
+      if ((d.done || 0) > 0) {
+        bars += `<text x="${(x + bw / 2).toFixed(1)}" y="${(y - 4).toFixed(1)}" font-size="10" text-anchor="middle" fill="#3a3226">${d.done}</text>`;
+      }
+    });
+    return `<svg viewBox="0 0 ${w} ${h}" width="100%" height="${h}" role="img" aria-label="近7天完成数趋势">${bars}</svg>`;
+  }
 
   // —— 导入：FileReader 读成文本 → POST 原始 JSON 文本 ——
   importBtn.addEventListener("click", () => importFile.click());
@@ -277,7 +475,10 @@
     }
   });
 
-  renderDate();
+  // 初始化
+  renderHeaderDate();
+  todayStr = getTodayStr();
+  viewed = todayStr;
   load();
 </script>
 </body>

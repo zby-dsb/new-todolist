@@ -6,6 +6,7 @@ app.url
 start.log
 start_error.txt
 tasks.backup.*.json
+backup/
 
 # Python
 __pycache__/
