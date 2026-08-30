@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>每日任务清单</title>
+<style>
+  :root {
+    --bg: #f6efe2;          /* 米色背景 */
+    --card: #fffcf6;        /* 暖白卡片 */
+    --border: #e7dcc6;
+    --text: #3a3226;        /* 暖棕文字 */
+    --muted: #9a8e78;
+    --primary: #cf8a4b;     /* 暖橘强调色 */
+    --primary-hover: #b9763b;
+    --done: #4a9d5b;       /* 完成绿 */
+    --done-bg: #e7f3e9;
+    --danger: #d96b5b;
+    --shadow: 0 1px 3px rgba(120,90,40,.08), 0 10px 28px rgba(120,90,40,.06);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+    padding: 36px 16px;
+  }
+  .wrap { max-width: 640px; margin: 0 auto; }
+  header { text-align: center; margin-bottom: 22px; }
+  header h1 {
+    font-size: 34px; font-weight: 800; margin: 0 0 6px;
+    letter-spacing: 1px; color: #5a4a32;
+  }
+  header p.date { color: var(--primary); font-size: 14px; margin: 0; font-weight: 600; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    padding: 20px;
+  }
+  .stats { font-size: 13px; color: var(--muted); margin-bottom: 12px; }
+
+  .toolbar { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+  .btn {
+    font-size: 13px; cursor: pointer; border-radius: 9px;
+    padding: 8px 14px; transition: background .15s, color .15s;
+    border: 1px solid var(--border); background: var(--card); color: var(--text);
+    text-decoration: none; display: inline-block;
+  }
+  .btn:hover { background: #f3ead8; }
+
+  ul.list { list-style: none; margin: 0 0 18px; padding: 0; }
+  li.item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 6px; border-top: 1px solid var(--border);
+  }
+  li.item:first-child { border-top: none; }
+  .check {
+    width: 22px; height: 22px; border: 2px solid var(--border);
+    border-radius: 7px; cursor: pointer; flex: none; display: grid; place-items: center;
+    color: #fff; font-size: 14px; transition: all .15s;
+  }
+  .item.done .check { background: var(--done); border-color: var(--done); }
+  .item.done .content { color: var(--muted); text-decoration: line-through; }
+  .content { flex: 1; font-size: 15px; word-break: break-all; }
+  .id-tag { color: var(--muted); font-size: 12px; width: 28px; flex: none; }
+  .btn-del {
+    background: transparent; color: var(--danger); padding: 6px 10px; font-size: 13px;
+    border: none; border-radius: 8px; cursor: pointer;
+  }
+  .btn-del:hover { background: #fbeae6; }
+
+  .add-row {
+    display: flex; gap: 8px; padding-top: 16px; border-top: 2px dashed var(--border);
+  }
+  .add-row input {
+    flex: 1; padding: 11px 12px; font-size: 14px;
+    border: 1px solid var(--border); border-radius: 9px; outline: none;
+    background: #fffdf8;
+  }
+  .add-row input:focus { border-color: var(--primary); }
+  button {
+    font-size: 14px; cursor: pointer; border: none; border-radius: 9px;
+    padding: 11px 18px; transition: background .15s;
+  }
+  .btn-primary { background: var(--primary); color: #fff; font-weight: 600; }
+  .btn-primary:hover { background: var(--primary-hover); }
+
+  .empty { color: var(--muted); text-align: center; padding: 22px 0; font-size: 14px; }
+  .note {
+    margin-top: 16px; font-size: 12px; color: #8a7a55;
+    background: #fbf3df; border: 1px solid #efdcae; border-radius: 8px; padding: 10px 12px;
+  }
+
+  .toast {
+    position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%) translateY(20px);
+    background: #5a4a32; color: #fff; padding: 10px 18px; border-radius: 10px;
+    font-size: 13px; opacity: 0; pointer-events: none; transition: all .25s; max-width: 90%;
+    box-shadow: 0 8px 24px rgba(0,0,0,.18); z-index: 50;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>每日任务清单</h1>
+    <p class="date" id="date"></p>
+  </header>
+
+  <div class="card">
+    <div class="stats" id="stats">共 0 项 · 已完成 0 项</div>
+
+    <div class="toolbar">
+      <a class="btn" href="/api/export" download="tasks.json">导出备份</a>
+      <button class="btn" id="importBtn" type="button">导入备份</button>
+      <input type="file" id="importFile" accept=".json,application/json" hidden />
+    </div>
+
+    <ul class="list" id="list"></ul>
+
+    <div class="add-row">
+      <input id="taskInput" type="text" placeholder="输入新任务，回车或点“添加”" maxlength="500" />
+      <button class="btn-primary" id="addBtn" type="button">添加</button>
+    </div>
+
+    <div class="note">
+      数据保存在本机 <code>tasks.json</code>，不联网、不云同步。导入前会自动备份当前清单，可放心恢复。
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  // —— 接口封装 ——
+  const api = {
+    async list() {
+      const r = await fetch("/api/tasks");
+      return r.json();
+    },
+    async add(content) {
+      const r = await fetch("/api/tasks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content }),
+      });
+      if (!r.ok) throw new Error((await r.json()).error || "添加失败");
+      return r.json();
+    },
+    async toggle(id) {
+      const r = await fetch(`/api/tasks/${id}/toggle`, { method: "POST" });
+      if (!r.ok) throw new Error("操作失败");
+      return r.json();
+    },
+    async remove(id) {
+      const r = await fetch(`/api/tasks/${id}`, { method: "DELETE" });
+      if (!r.ok) throw new Error("删除失败");
+      return r.json();
+    },
+  };
+
+  const listEl = document.getElementById("list");
+  const statsEl = document.getElementById("stats");
+  const dateEl = document.getElementById("date");
+  const inputEl = document.getElementById("taskInput");
+  const addBtn = document.getElementById("addBtn");
+  const importBtn = document.getElementById("importBtn");
+  const importFile = document.getElementById("importFile");
+  const toastEl = document.getElementById("toast");
+
+  let tasks = [];
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+    }[c]));
+  }
+
+  function toast(msg) {
+    toastEl.textContent = msg;
+    toastEl.classList.add("show");
+    clearTimeout(toast._t);
+    toast._t = setTimeout(() => toastEl.classList.remove("show"), 3200);
+  }
+
+  function renderDate() {
+    const now = new Date();
+    dateEl.textContent = now.toLocaleDateString("zh-CN", {
+      year: "numeric", month: "long", day: "numeric", weekday: "long",
+    });
+  }
+
+  function render() {
+    listEl.innerHTML = "";
+    if (tasks.length === 0) {
+      listEl.innerHTML = '<div class="empty">还没有任务，在下面添加一个吧～</div>';
+    } else {
+      tasks.forEach(t => {
+        const li = document.createElement("li");
+        li.className = "item" + (t.done ? " done" : "");
+        li.innerHTML = `
+          <span class="id-tag">#${t.id}</span>
+          <span class="check" data-act="toggle" data-id="${t.id}">${t.done ? "✓" : ""}</span>
+          <span class="content">${escapeHtml(t.content)}</span>
+          <button class="btn-del" data-act="del" data-id="${t.id}" type="button">删除</button>
+        `;
+        listEl.appendChild(li);
+      });
+    }
+    const done = tasks.filter(t => t.done).length;
+    statsEl.textContent = `共 ${tasks.length} 项 · 已完成 ${done} 项`;
+  }
+
+  async function load() {
+    try {
+      const data = await api.list();
+      tasks = data.tasks || [];
+      render();
+    } catch (e) {
+      toast("加载失败：" + e.message);
+    }
+  }
+
+  async function addTask() {
+    const v = inputEl.value.trim();
+    if (!v) { toast("任务内容不能为空"); return; }
+    try {
+      await api.add(v);
+      inputEl.value = "";
+      await load();
+    } catch (e) {
+      toast(e.message);
+    }
+  }
+
+  addBtn.addEventListener("click", addTask);
+  inputEl.addEventListener("keydown", e => { if (e.key === "Enter") addTask(); });
+
+  listEl.addEventListener("click", async e => {
+    const el = e.target.closest("[data-act]");
+    if (!el) return;
+    const id = Number(el.dataset.id);
+    const act = el.dataset.act;
+    try {
+      if (act === "toggle") await api.toggle(id);
+      else if (act === "del") await api.remove(id);
+      await load();
+    } catch (err) {
+      toast(err.message);
+    }
+  });
+
+  // —— 导入：FileReader 读成文本 → POST 原始 JSON 文本 ——
+  importBtn.addEventListener("click", () => importFile.click());
+  importFile.addEventListener("change", async e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const r = await fetch("/api/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: text,
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error || "导入失败");
+      toast(`导入成功，共 ${j.count} 项（已自动备份原数据）`);
+      await load();
+    } catch (err) {
+      toast("导入失败：" + (err.message || "数据格式错误"));
+    } finally {
+      importFile.value = "";
+    }
+  });
+
+  renderDate();
+  load();
+</script>
+</body>
+</html>
