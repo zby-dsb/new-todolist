@@ -79,5 +79,11 @@ if not defined UP (
     pause
     exit /b 1
 )
-echo Started. Your browser should open the task list automatically.
+echo Started. Opening your browser...
+if exist app.url (
+    set /p URL=<app.url
+    if defined URL start "" %URL%
+) else (
+    start "" http://127.0.0.1:8000/
+)
 ping -n 3 127.0.0.1 >nul

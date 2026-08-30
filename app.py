@@ -11,6 +11,7 @@
 import datetime
 import html
 import json
+import sys
 import logging
 import os
 import re
@@ -389,8 +390,14 @@ def main():
     with open(URL_FILE, "w", encoding="utf-8") as f:
         f.write(url)
     LOGGER.info("服务已启动：%s", url)
+    # 有控制台（直接 `python app.py` 调试）时由 app.py 自行开浏览器；
+    # 无控制台（双击 start.bat 走 pythonw）时交给启动脚本用 `start` 命令打开，
+    # 避免 webbrowser.open 在 pythonw 下静默失败导致浏览器不弹出。
     try:
-        webbrowser.open(url)
+        if sys.stdin is not None and sys.stdin.isatty():
+            webbrowser.open(url)
+        else:
+            LOGGER.info("无控制台运行，浏览器将由启动脚本打开")
     except Exception as e:
         LOGGER.warning("自动打开浏览器失败：%s", e)
     try:
