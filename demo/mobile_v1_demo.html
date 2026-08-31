@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<title>每日任务清单 · 手机端 Demo</title>
+<style>
+  :root {
+    --bg: #f4efe6;          /* 暖米色背景 */
+    --card: #fffdf8;        /* 暖白卡片 */
+    --text: #2c2620;        /* 暖棕文字 */
+    --muted: #9b9183;       /* 次要文字 */
+    --primary: #e08a3c;     /* 暖橘强调 */
+    --primary-soft: #fbe6d2;
+    --done: #4a9d5b;
+    --done-bg: #e7f3e9;
+    --danger: #e0664f;
+    --danger-soft: #fbe3de;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Helvetica Neue", "Microsoft YaHei", sans-serif;
+    background: #e7e7ec;
+    color: var(--text);
+    display: flex; align-items: center; justify-content: center;
+    min-height: 100vh; padding: 24px;
+  }
+
+  /* —— 手机外壳（桌面预览用） —— */
+  .device {
+    width: 390px; height: 844px; background: #0b0b0d;
+    border-radius: 52px; padding: 13px;
+    box-shadow: 0 30px 70px rgba(0,0,0,.35), inset 0 0 2px 2px rgba(255,255,255,.06);
+    position: relative; flex: none;
+  }
+  .screen {
+    width: 100%; height: 100%; background: var(--bg);
+    border-radius: 40px; overflow: hidden; position: relative;
+    display: flex; flex-direction: column;
+  }
+  .notch {
+    position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+    width: 150px; height: 26px; background: #0b0b0d;
+    border-radius: 0 0 16px 16px; z-index: 30;
+  }
+  .statusbar {
+    height: 44px; display: flex; align-items: center; justify-content: space-between;
+    padding: 0 26px; font-size: 14px; font-weight: 600; color: var(--text);
+    z-index: 20; flex: none;
+  }
+  .statusbar .icons { display: flex; gap: 6px; align-items: center; }
+  .statusbar .icons span { font-size: 12px; }
+
+  /* 顶部标题栏（毛玻璃，居中） */
+  .topbar {
+    backdrop-filter: saturate(180%) blur(20px);
+    background: rgba(244,239,230,.78);
+    padding: 10px 18px 14px; border-bottom: 1px solid rgba(0,0,0,.04); flex: none;
+    text-align: center;
+  }
+  .topbar h1 { margin: 0; font-size: 24px; font-weight: 800; letter-spacing: .5px; }
+  .topbar .sub { font-size: 13px; color: var(--primary); font-weight: 600; margin-top: 2px; }
+
+  /* 可滚动内容区（含安全区内边距） */
+  .content {
+    flex: 1; overflow-y: auto; padding: 16px 16px 90px;
+    padding-top: max(16px, env(safe-area-inset-top));
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* 卡片 */
+  .card {
+    background: var(--card); border-radius: 28px 28px 22px 22px;
+    box-shadow: 0 1px 2px rgba(120,90,40,.05), 0 10px 24px rgba(120,90,40,.06);
+    padding: 16px; margin-bottom: 14px;
+  }
+
+  /* 日期导航 */
+  .datenav { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 12px; }
+  .nav-btn {
+    border: none; background: #fff; color: var(--text);
+    border-radius: 13px; padding: 9px 12px; font-size: 13px; font-weight: 600;
+    box-shadow: 0 1px 2px rgba(0,0,0,.05); cursor: pointer; transition: transform .08s, background .15s;
+  }
+  .nav-btn:active { transform: scale(.95); background: var(--primary-soft); }
+  .viewed { font-size: 13px; font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums; margin-left: 4px; }
+  .banner {
+    font-size: 12px; color: #8a6d3b; background: var(--primary-soft);
+    border-radius: 12px; padding: 8px 12px; margin-bottom: 10px;
+  }
+
+  .stats-line { font-size: 13px; color: var(--muted); margin-bottom: 12px; }
+
+  /* 工具栏 */
+  .toolbar { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+  .btn {
+    border: none; background: #fff; color: var(--text);
+    border-radius: 14px; padding: 10px 14px; font-size: 13px; font-weight: 600;
+    box-shadow: 0 1px 2px rgba(0,0,0,.05); cursor: pointer; transition: transform .08s, background .15s;
+  }
+  .btn:active { transform: scale(.96); }
+  .btn.primary { background: var(--primary); color: #fff; box-shadow: 0 4px 12px rgba(224,138,60,.35); }
+  .btn.ghost { background: transparent; box-shadow: none; color: var(--muted); }
+  .btn.stat { margin-left: auto; }
+
+  /* 任务列表 */
+  ul.list { list-style: none; margin: 0; padding: 0; }
+  li.item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 6px; border-top: 1px solid rgba(0,0,0,.04);
+  }
+  li.item:first-child { border-top: none; }
+  .check {
+    width: 26px; height: 26px; border-radius: 50%; flex: none;
+    border: 2px solid #d8cdb8; background: #fff; cursor: pointer;
+    display: grid; place-items: center; color: #fff; font-size: 15px;
+    transition: all .18s;
+  }
+  .item.done .check { background: var(--done); border-color: var(--done); }
+  .item.done .content { color: var(--muted); text-decoration: line-through; }
+  .content { flex: 1; font-size: 16px; cursor: pointer; min-height: 26px; display: flex; align-items: center; word-break: break-all; }
+  .id-tag { color: var(--muted); font-size: 12px; width: 26px; flex: none; }
+  .btn-del {
+    border: none; background: var(--danger-soft); color: var(--danger);
+    border-radius: 12px; padding: 8px 12px; font-size: 13px; font-weight: 600; cursor: pointer;
+    transition: transform .08s;
+  }
+  .btn-del:active { transform: scale(.94); }
+
+  /* 编辑态 */
+  .edit-wrap { flex: 1; display: flex; gap: 8px; align-items: center; }
+  .edit-input {
+    flex: 1; padding: 10px 12px; font-size: 16px; font-family: inherit;
+    border: 2px solid var(--primary); border-radius: 12px; outline: none; background: #fffdf8; min-width: 0;
+  }
+  .edit-save { border: none; background: var(--primary); color: #fff; border-radius: 12px; padding: 10px 14px; font-weight: 700; font-size: 14px; cursor: pointer; }
+  .edit-cancel { border: none; background: #efe9dd; color: var(--muted); border-radius: 12px; padding: 10px 14px; font-weight: 600; font-size: 14px; cursor: pointer; }
+
+  /* 新增 */
+  .add-row { display: flex; gap: 8px; margin-top: 14px; }
+  .add-row input {
+    flex: 1; padding: 13px 14px; font-size: 15px; font-family: inherit;
+    border: 1px solid rgba(0,0,0,.06); border-radius: 14px; outline: none; background: #fffdf8; min-width: 0;
+  }
+  .add-row input:focus { border-color: var(--primary); }
+  .empty { color: var(--muted); text-align: center; padding: 26px 0; font-size: 14px; }
+
+  .note { font-size: 12px; color: #8a7a55; background: var(--primary-soft); border-radius: 12px; padding: 10px 12px; line-height: 1.6; }
+
+  /* 统计面板 */
+  .stats-panel { margin-top: 14px; }
+  .stats-panel h2 { margin: 0 0 12px; font-size: 18px; }
+  .metric-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+  .metric { background: #fbf4e6; border-radius: 16px; padding: 14px; text-align: center; }
+  .metric .num { font-size: 24px; font-weight: 800; color: var(--primary); font-variant-numeric: tabular-nums; }
+  .metric .lbl { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .chart-title { font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+
+  /* Toast */
+  .toast {
+    position: fixed; left: 50%; bottom: 30px; transform: translateX(-50%) translateY(20px);
+    background: rgba(44,38,32,.94); color: #fff; padding: 12px 18px; border-radius: 16px;
+    font-size: 13px; opacity: 0; pointer-events: none; transition: all .25s; z-index: 60;
+    display: flex; align-items: center; gap: 12px; max-width: 88%;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); pointer-events: auto; }
+  .toast .undo { color: #ffd9a8; font-weight: 700; cursor: pointer; }
+
+  .caption { text-align: center; color: #8a8a92; font-size: 12px; margin-top: 18px; max-width: 390px; }
+
+  /* 右下角帮助按钮（感叹号） */
+  .fab {
+    position: absolute; right: 18px; bottom: 26px; z-index: 40;
+    width: 52px; height: 52px; border-radius: 50%; border: none;
+    background: var(--primary); color: #fff; font-size: 26px; font-weight: 800; line-height: 1;
+    box-shadow: 0 10px 22px rgba(224,138,60,.45); cursor: pointer;
+    display: grid; place-items: center; transition: transform .1s;
+  }
+  .fab:active { transform: scale(.92); }
+
+  /* 帮助弹层 */
+  .overlay {
+    position: absolute; inset: 0; z-index: 70;
+    background: rgba(20,16,12,.45);
+    display: flex; align-items: center; justify-content: center; padding: 28px;
+    opacity: 0; pointer-events: none; transition: opacity .2s;
+  }
+  .overlay.show { opacity: 1; pointer-events: auto; }
+  .help-card {
+    background: var(--card); border-radius: 22px; padding: 22px; max-width: 320px; width: 100%;
+    box-shadow: 0 20px 50px rgba(0,0,0,.3); transform: scale(.92); transition: transform .2s;
+  }
+  .overlay.show .help-card { transform: scale(1); }
+  .help-card h3 { margin: 0 0 10px; font-size: 17px; }
+  .help-card p { font-size: 13px; color: var(--text); line-height: 1.75; margin: 0 0 14px; }
+  .help-actions { display: flex; gap: 8px; }
+  .help-actions .btn { flex: 1; }
+  .help-foot { text-align: right; margin-top: 12px; }
+
+  /* 真机全屏 */
+  @media (max-width: 480px) {
+    body { padding: 0; background: var(--bg); }
+    .device { width: 100vw; height: 100vh; height: 100dvh; border-radius: 0; padding: 0; box-shadow: none; }
+    .screen { border-radius: 0; }
+    .notch { display: none; }
+    .caption { display: none; }
+  }
+</style>
+</head>
+<body>
+  <div class="device">
+    <div class="notch"></div>
+    <div class="screen">
+      <div class="statusbar">
+        <span id="clock">9:41</span>
+        <span class="icons"><span>📶</span><span>🔋</span></span>
+      </div>
+      <div class="topbar">
+        <h1>每日任务清单</h1>
+        <div class="sub" id="todayLabel"></div>
+        <div class="datenav">
+          <button class="nav-btn" id="prevBtn">‹ 前一天</button>
+          <button class="nav-btn" id="todayBtn">今天</button>
+          <button class="nav-btn" id="nextBtn">后一天 ›</button>
+          <span class="viewed" id="viewedDate"></span>
+        </div>
+      </div>
+      <div class="content">
+        <div class="card">
+          <div class="banner" id="historyBanner" hidden>历史日期 · 仅不能「新增」任务（可勾选 / 编辑 / 删除）</div>
+
+          <div class="stats-line" id="statsLine">共 0 项 · 已完成 0 项</div>
+
+          <div class="toolbar">
+            <button class="btn ghost" id="undoBtn">↩ 撤销</button>
+            <button class="btn stat" id="statBtn">📊 统计</button>
+          </div>
+
+          <ul class="list" id="list"></ul>
+
+          <div class="add-row" id="addRow">
+            <input id="taskInput" type="text" placeholder="输入新任务，回车或点“添加”" maxlength="500" />
+            <button class="btn primary" id="addBtn">添加</button>
+          </div>
+        </div>
+
+        <div class="card stats-panel" id="statsPanel" hidden>
+          <h2>📊 统计与打卡回顾</h2>
+          <div class="metric-grid" id="metricGrid"></div>
+          <div class="chart-title">近 7 天完成数（按实际完成时间）</div>
+          <div id="chart"></div>
+        </div>
+      </div>
+      <button class="fab" id="helpFab" aria-label="使用说明">!</button>
+      <div class="overlay" id="helpOverlay">
+        <div class="help-card">
+          <h3>使用说明</h3>
+          <p>手机端数据独立、不联网。可随时「导出备份」发到电脑 / 微信，「导入备份」读回。<br /><br /><strong>手机端：单击任务文字即可编辑</strong>（配「保存 / 取消」按钮）。</p>
+          <div class="help-actions">
+            <button class="btn" id="exportBtn2">导出备份</button>
+            <button class="btn" id="importBtn2">导入备份</button>
+            <input type="file" id="importFile" accept=".json,application/json" hidden />
+          </div>
+          <div class="help-foot"><button class="btn primary" id="helpClose">知道了</button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="caption">这是手机端界面原型 · 数据均为模拟 · 在手机浏览器打开可全屏体验</div>
+
+  <div class="toast" id="toast"></div>
+
+<script>
+  // ===== 工具 =====
+  const $ = id => document.getElementById(id);
+  const pad = n => n < 10 ? "0" + n : "" + n;
+  const fmt = d => d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
+  const parse = s => { const [y, m, d] = s.split("-").map(Number); return new Date(y, m - 1, d); };
+  const addDays = (s, n) => { const dt = parse(s); dt.setDate(dt.getDate() + n); return fmt(dt); };
+  const todayStr = () => fmt(new Date());
+  const TASKS_KEY = "dailytodo.demo.tasks";
+  const SNAP_KEY = "dailytodo.demo.snapshots";
+  const TIP_KEY = "dailytodo.demo.tipShown";
+
+  // ===== 模拟数据 =====
+  function seed() {
+    const t = todayStr();
+    const mk = (id, content, date, done, completedOffset) => ({
+      id, content, date, done,
+      created_at: date + "T09:00:00",
+      completed_at: done ? date + "T" + pad(9 + (completedOffset || 0)) + ":30:00" : null
+    });
+    let id = 1;
+    const arr = [
+      mk(id++, "复习 STM32 定时器", t, true, 1),
+      mk(id++, "写操作系统实验报告", t, false),
+      mk(id++, "健身 30 分钟", t, true, 3),
+      mk(id++, "背 30 个英语单词", addDays(t, -1), true, 1),
+      mk(id++, "整理笔记", addDays(t, -1), false),
+      mk(id++, "看一节网课", addDays(t, -2), true, 2),
+      mk(id++, "跑步 5 公里", addDays(t, -3), true, 1),
+      mk(id++, "读 20 页书", addDays(t, -4), true, 0),
+      mk(id++, "调试蓝牙模块", addDays(t, -5), false),
+      mk(id++, "写周报", addDays(t, -6), true, 2),
+    ];
+    return arr;
+  }
+
+  function load() {
+    try { const s = localStorage.getItem(TASKS_KEY); if (s) return JSON.parse(s); } catch (e) {}
+    const s = seed(); save(s); return s;
+  }
+  function save(tasks) { localStorage.setItem(TASKS_KEY, JSON.stringify(tasks || tasksArr)); }
+  function loadSnaps() { try { return JSON.parse(localStorage.getItem(SNAP_KEY)) || []; } catch (e) { return []; } }
+  function saveSnaps(s) { localStorage.setItem(SNAP_KEY, JSON.stringify(s.slice(-5))); }
+
+  let tasksArr = load();
+  let snaps = loadSnaps();
+  let viewed = todayStr();
+  let editingId = null;
+
+  function snapshot() {
+    snaps.push(JSON.parse(JSON.stringify(tasksArr)));
+    if (snaps.length > 5) snaps = snaps.slice(-5);
+    saveSnaps(snaps);
+  }
+
+  // ===== 渲染 =====
+  function render() {
+    const isToday = viewed === todayStr();
+    const list = $("list");
+    list.innerHTML = "";
+    const dayTasks = tasksArr.filter(t => t.date === viewed);
+
+    if (dayTasks.length === 0) {
+      list.innerHTML = '<div class="empty">这一天还没有任务～</div>';
+    } else {
+      dayTasks.forEach(t => {
+        const li = document.createElement("li");
+        li.className = "item" + (t.done ? " done" : "");
+        li.dataset.id = t.id;
+        if (t.id === editingId) {
+          li.innerHTML = `
+            <span class="id-tag">#${t.id}</span>
+            <div class="edit-wrap">
+              <input class="edit-input" id="editInput" value="${escapeAttr(t.content)}" maxlength="500" />
+              <button class="edit-save" id="editSave">保存</button>
+              <button class="edit-cancel" id="editCancel">取消</button>
+            </div>`;
+        } else {
+          li.innerHTML = `
+            <span class="id-tag">#${t.id}</span>
+            <span class="check" data-act="toggle">${t.done ? "✓" : ""}</span>
+            <span class="content" data-act="edit">${escapeHtml(t.content)}</span>
+            <button class="btn-del" data-act="del">删除</button>`;
+        }
+        list.appendChild(li);
+      });
+    }
+
+    const done = dayTasks.filter(t => t.done).length;
+    $("statsLine").textContent = `共 ${dayTasks.length} 项 · 已完成 ${done} 项`;
+    $("addRow").hidden = !isToday;
+    $("historyBanner").hidden = isToday;
+    $("viewedDate").textContent = isToday ? "今天" : parse(viewed).toLocaleDateString("zh-CN", { month: "long", day: "numeric", weekday: "short" });
+
+    if (editingId !== null) {
+      const inp = $("editInput"); inp.focus(); inp.select();
+      inp.addEventListener("keydown", ev => {
+        if (ev.isComposing || ev.keyCode === 229) return;
+        if (ev.key === "Enter") { ev.preventDefault(); commitEdit(); }
+        else if (ev.key === "Escape") { ev.preventDefault(); cancelEdit(); }
+      });
+      $("editSave").onclick = commitEdit;
+      $("editCancel").onclick = cancelEdit;
+    }
+  }
+
+  function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
+  function escapeAttr(s) { return escapeHtml(s).replace(/"/g, "&quot;"); }
+
+  // ===== 操作 =====
+  function addTask() {
+    if (viewed !== todayStr()) return;
+    const v = $("taskInput").value.trim();
+    if (!v) { toast("任务内容不能为空"); return; }
+    snapshot();
+    const maxId = tasksArr.reduce((m, t) => Math.max(m, t.id), 0);
+    tasksArr.push({ id: maxId + 1, content: v, date: todayStr(), done: false, created_at: new Date().toISOString().slice(0, 19), completed_at: null });
+    save(); $("taskInput").value = ""; render();
+  }
+
+  function toggle(id) {
+    snapshot();
+    const t = tasksArr.find(x => x.id === id);
+    if (!t) return;
+    t.done = !t.done;
+    t.completed_at = t.done ? new Date().toISOString().slice(0, 19) : null;
+    save(); render();
+  }
+
+  function removeTask(id) {
+    snapshot();
+    const idx = tasksArr.findIndex(x => x.id === id);
+    if (idx < 0) return;
+    const removed = tasksArr[idx];
+    tasksArr.splice(idx, 1);
+    save(); render();
+    toast(`已删除「${removed.content.slice(0, 8)}」`, () => {
+      snapshot(); tasksArr.push(removed); save(); render();
+    });
+  }
+
+  function startEdit(id) { editingId = id; render(); }
+  function commitEdit() {
+    const inp = $("editInput"); if (!inp) return;
+    const v = inp.value.trim();
+    if (!v) { toast("任务内容不能为空"); inp.focus(); return; }
+    snapshot();
+    const t = tasksArr.find(x => x.id === editingId);
+    if (t) { t.content = v; save(); }
+    editingId = null; render();
+  }
+  function cancelEdit() { editingId = null; render(); }
+
+  function undo() {
+    if (snaps.length === 0) { toast("没有可撤销的改动"); return; }
+    tasksArr = snaps.pop(); saveSnaps(snaps); save(); render(); toast("已撤销上一次改动");
+  }
+
+  // ===== 统计 =====
+  function computeStats() {
+    const today = todayStr();
+    const todayTasks = tasksArr.filter(t => t.date === today);
+    const todayDone = todayTasks.filter(t => t.done).length;
+    const todayTotal = todayTasks.length;
+
+    const dow = (parse(today).getDay() + 6) % 7;
+    const monday = addDays(today, -dow);
+    let weekDone = 0;
+    tasksArr.forEach(t => {
+      if (t.done && t.completed_at) { const cd = t.completed_at.slice(0, 10); if (cd >= monday && cd <= today) weekDone++; }
+    });
+
+    let streak = 0, cur = today;
+    while (tasksArr.some(t => t.date === cur && t.done)) { streak++; cur = addDays(cur, -1); }
+
+    const rate = todayTotal ? todayDone / todayTotal : 0;
+    const trend = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = addDays(today, -i);
+      const c = tasksArr.filter(t => t.date === d && t.done).length;
+      trend.push({ date: d, done: c });
+    }
+    return { today_done: todayDone, today_total: todayTotal, week_done: weekDone, streak, today_rate: rate, trend };
+  }
+
+  function renderStats() {
+    const s = computeStats();
+    const metrics = [
+      { num: s.today_done + " / " + s.today_total, lbl: "今日完成 / 总数" },
+      { num: s.week_done, lbl: "本周完成" },
+      { num: s.streak + " 天", lbl: "连续打卡" },
+      { num: Math.round(s.today_rate * 100) + "%", lbl: "今日完成率" },
+    ];
+    $("metricGrid").innerHTML = metrics.map(m => `<div class="metric"><div class="num">${m.num}</div><div class="lbl">${m.lbl}</div></div>`).join("");
+    $("chart").innerHTML = buildTrend(s.trend);
+  }
+
+  function buildTrend(trend) {
+    const w = 300, h = 150, padX = 18, padTop = 18, padBottom = 22;
+    const n = trend.length || 1;
+    const max = Math.max(1, ...trend.map(d => d.done || 0));
+    const gap = (w - padX * 2) / n;
+    const bw = Math.min(26, gap * 0.6);
+    let bars = "";
+    trend.forEach((d, i) => {
+      const x = padX + i * gap + (gap - bw) / 2;
+      const bh = max ? ((d.done || 0) / max) * (h - padTop - padBottom) : 0;
+      const y = h - padBottom - bh;
+      const isToday = d.date === todayStr();
+      const fill = isToday ? "#e08a3c" : "#cdbb9c";
+      bars += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${bh.toFixed(1)}" rx="4" fill="${fill}"></rect>`;
+      const label = d.date.slice(5);
+      bars += `<text x="${(x + bw / 2).toFixed(1)}" y="${h - 6}" font-size="9" text-anchor="middle" fill="#9b9183">${label}</text>`;
+      if ((d.done || 0) > 0) bars += `<text x="${(x + bw / 2).toFixed(1)}" y="${(y - 4).toFixed(1)}" font-size="10" text-anchor="middle" fill="#2c2620">${d.done}</text>`;
+    });
+    return `<svg viewBox="0 0 ${w} ${h}" width="100%" height="${h}" role="img" aria-label="近7天完成数趋势">${bars}</svg>`;
+  }
+
+  // ===== 导出 / 导入（模拟桥梁） =====
+  function exportData() {
+    const blob = new Blob([JSON.stringify(tasksArr, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = "tasks.json"; a.click();
+    URL.revokeObjectURL(url);
+    toast("已导出 tasks.json（演示：真实下载）");
+  }
+  function importData(file) {
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const arr = JSON.parse(reader.result);
+        if (!Array.isArray(arr)) throw new Error("格式不是任务数组");
+        snapshot();
+        tasksArr = arr.map(t => ({
+          id: Number(t.id) || 0,
+          content: String(t.content || ""),
+          date: t.date || (t.created_at || todayStr()).slice(0, 10),
+          done: !!t.done,
+          created_at: t.created_at || todayStr() + "T00:00:00",
+          completed_at: t.completed_at ?? null,
+        }));
+        save(); render(); toast("导入成功，共 " + tasksArr.length + " 项");
+      } catch (e) { toast("导入失败：" + e.message); }
+    };
+    reader.readAsText(file);
+  }
+
+  // ===== Toast =====
+  let toastTimer;
+  function toast(msg, onUndo) {
+    const el = $("toast");
+    el.innerHTML = "";
+    const span = document.createElement("span"); span.textContent = msg; el.appendChild(span);
+    if (onUndo) {
+      const u = document.createElement("span"); u.className = "undo"; u.textContent = "撤销";
+      u.onclick = () => { clearTimeout(toastTimer); el.classList.remove("show"); onUndo(); };
+      el.appendChild(u);
+    }
+    el.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.remove("show"), onUndo ? 4000 : 2200);
+  }
+
+  // ===== 事件绑定 =====
+  $("list").addEventListener("click", e => {
+    const el = e.target.closest("[data-act]");
+    if (!el) return;
+    const id = Number(el.closest("li").dataset.id);
+    const act = el.dataset.act;
+    if (act === "toggle") toggle(id);
+    else if (act === "del") removeTask(id);
+    else if (act === "edit") startEdit(id);
+  });
+  $("addBtn").onclick = addTask;
+  $("taskInput").addEventListener("keydown", e => { if (e.key === "Enter") addTask(); });
+  $("prevBtn").onclick = () => { viewed = addDays(viewed, -1); render(); };
+  $("nextBtn").onclick = () => { viewed = addDays(viewed, 1); render(); };
+  $("todayBtn").onclick = () => { viewed = todayStr(); render(); };
+  $("undoBtn").onclick = undo;
+  $("helpFab").onclick = () => $("helpOverlay").classList.add("show");
+  $("helpClose").onclick = () => $("helpOverlay").classList.remove("show");
+  $("helpOverlay").addEventListener("click", e => { if (e.target === $("helpOverlay")) $("helpOverlay").classList.remove("show"); });
+  $("exportBtn2").onclick = () => { exportData(); };
+  $("importBtn2").onclick = () => $("importFile").click();
+  $("importFile").addEventListener("change", e => { if (e.target.files[0]) importData(e.target.files[0]); e.target.value = ""; });
+  $("statBtn").onclick = () => {
+    const p = $("statsPanel");
+    if (!p.hidden) { p.hidden = true; return; }
+    renderStats(); p.hidden = false;
+  };
+
+  // 首次启动提示
+  if (!localStorage.getItem(TIP_KEY)) {
+    localStorage.setItem(TIP_KEY, "1");
+    setTimeout(() => toast("点击右下角 ❗ 查看使用说明与数据备份", null), 600);
+  }
+
+  // 时钟
+  function tick() { const d = new Date(); $("clock").textContent = d.getHours() + ":" + pad(d.getMinutes()); }
+  tick(); setInterval(tick, 10000);
+
+  // 初始化
+  $("todayLabel").textContent = new Date().toLocaleDateString("zh-CN", { year: "numeric", month: "long", day: "numeric", weekday: "long" });
+  render();
+</script>
+</body>
+</html>
