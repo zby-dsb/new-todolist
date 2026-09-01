@@ -1,0 +1,261 @@
+# 每日任务清单 · 手机端技术方案（v1.0）
+
+> 关联文档：`docs/DESIGN_手机端_v1.0.md`（产品设计 / 需求）、`docs/技术方案_v1.1.md`（电脑端技术方案）
+> 状态：**方案已定，环境未配置（待开工）**
+> 目标平台：**Android 装到华为手机**（机型 HUAWEI Pura 70 Pro）
+> 技术栈结论：**Capacitor 8**（网页装进安卓壳）+ 手机端 **localStorage 存储**，电脑端 Python 后端原样保留
+
+---
+
+## 0. 关于「安卓版本」的澄清（重要）
+
+用户最初报的「安卓版本：4.2.0.242」**不是 Android 版本号**，那是华为的 **HarmonyOS（鸿蒙）系统版本 4.2**。
+
+- 鸿蒙 4.x 底层仍基于 Android 12（API 31），并保留 AOSP 安卓兼容层，**能正常安装和运行安卓 APK**。
+- 因此 Capacitor 生成的 APK 在 Pura 70 Pro 上可安装、可运行；minSdk 24（Android 7.0）远低于手机实际能力，无兼容问题。
+- **唯一长期风险**：若系统后续提示「升级到 HarmonyOS NEXT / 5.x」，升级后鸿蒙会**砍掉安卓兼容层，APK 将无法运行**。在手机端 App 正式跑起来之前，**不要升级到 HarmonyOS NEXT**（详见第 12 节）。
+
+---
+
+## 1. 目标与范围
+
+在电脑端（Python 后端 + 静态 HTML，见 `技术方案_v1.1.md`）之外，新增一个**独立的手机端 App**：
+
+- 界面与交互**视觉 100% 复用**（米色 UI、每日视图、统计、就地编辑），不重学。
+- **数据各存各的、互不同步**：沿用「不联网、不做多端同步」决策；两端是两份独立清单，靠导出/导入 JSON 手动搬。
+- 手机端**不再跑服务器**（无 localhost、端口、跨域、安卓禁明文 http 等坑），App 秒开、不被后台杀。
+- 纯本地、不联网（与电脑端一致）。
+
+不实现（与 DESIGN 第 4 节一致）：多端同步 / 联网 / 云存储、提醒与通知、标签/分类/优先级、深色模式、拖拽排序、iOS 版本、应用商店上架、导入「合并」逻辑（只做覆盖）。
+
+---
+
+## 2. 总体架构
+
+```
+                 ┌─────────────────────────────────────────────┐
+                 │          Capacitor 安卓壳（WebView）          │
+                 │   壳内嵌一个隐形浏览器，跑同一份 static/index  │
+                 └─────────────────────────────────────────────┘
+                       │                          │
+        手机端分支 (Capacitor.isNativePlatform)    │  桌面端分支（原样，不变）
+                       │                          │
+                 ┌─────▼──────┐            ┌──────▼──────────┐
+                 │ JS 存储层   │            │  HTTP (fetch)   │
+                 │ store.js    │            │  → Python 后端   │
+                 │ (localStorage)│          │  → tasks.json   │
+                 └────────────┘            └─────────────────┘
+```
+
+- **一份前端代码（static/index.html）+ 两种存储后端**：桌面端走 Python 后端；手机端走 JS 本地存储（`localStorage`）。
+- 仅**交互层按平台分支**：手机端单击编辑、显示「保存/取消」按钮、跨天刷新、返回键处理、安全区/窄屏适配等；桌面端维持原样（双击编辑）。分支用一行 `Capacitor.isNativePlatform()` 判断，同一份 `index.html` 内共存两种触发。
+- **新增逻辑代码**：把 `app.py` 的纯函数用 JS 重写一份存为 `static/store.js`（约 250 行），供手机端 localStorage 后端与 `node --test` 单测复用。
+- **电脑端完全不受影响**，Python 零依赖后端原样保留。
+
+---
+
+## 3. 技术栈与版本（已与用户拍板）
+
+| 项 | 选择 | 说明 / 版本约束 |
+|---|---|---|
+| 打包方式 | **Capacitor 8** | 当前正式稳定版（v9 仍为预览版，需 Node 24，不采用） |
+| 前端 | 现有 `static/index.html` + 新增 `static/store.js` | 零框架，原生 HTML/CSS/JS |
+| 手机端存储 | **localStorage**（App 内部小仓库） | 简单可靠、无权限问题 |
+| Node.js | v22.22.2 ✅（已装） | Capacitor 8 要求 Node 22+，**满足** |
+| npm | 10.9.7 ✅（已装） | 用于安装 Capacitor 及插件 |
+| Android Studio | **完整版**（非仅命令行 SDK） | 装 `D:\Android\Android Studio`；会自动装好 SDK 与 **JDK 17** |
+| Android SDK | API 24+（minSdk 24 / Android 7.0） | 实际手机为 Android 12，远超最低要求 |
+| targetSdk | 36（Capacitor 8 绑定） | 满足谷歌每年要求 |
+| JDK | **使用 Android Studio 自带的 JDK 17** | **禁止把系统 JDK 22 指给 Gradle**（易报 `unsupported class file major version`） |
+| 构建工具 | Gradle（Capacitor/Android Studio 自动下载） | 无需手动安装 |
+| 插件（官方） | `@capacitor/core` + `@capacitor/cli` + `@capacitor/android` + `@capacitor/filesystem` + `@capacitor/share` + `@capacitor/app` | Filesystem/Share 用于导出分享真正 `.json` 文件；App 用于返回键与前后台监听 |
+| 测试 | **Node 22 自带 `node --test`** | 零第三方依赖，直接 `import static/store.js` 做单测 |
+| 安装包 | **debug APK**（自用，无需签名） | 始终同一种方式打包，保证可覆盖安装 |
+| 安装方式 | 数据线 + `adb install -r` | 或数据线拷 APK 到手机点安装 |
+
+---
+
+## 4. 环境安装方案（全部 D 盘，用户明确要求）
+
+> 本步**尚未执行**，仅记录方案。预计占用 20~30G，D 盘当前剩余 109G，足够。
+
+| 内容 | 安装路径 |
+|---|---|
+| Android Studio | `D:\Android\Android Studio` |
+| Android SDK | `D:\Android\Sdk` |
+| Gradle 缓存 | `D:\Android\.gradle`（环境变量 `GRADLE_USER_HOME`） |
+| npm 缓存 | `D:\Android\.npm`（`npm config set cache`） |
+| 安卓虚拟设备 | `D:\Android\.android`（本方案**不装模拟器**，仅预留） |
+
+环境变量：`ANDROID_HOME` / `ANDROID_SDK_ROOT` → `D:\Android\Sdk`；并把 `D:\Android\Sdk\platform-tools` 加入 `PATH`（这样命令行直接敲 `adb` 可用）。
+
+安装要点（防止被塞进 C 盘）：
+1. 下载 Android Studio 安装包，运行后**选「Custom 自定义」**，安装目录手动改到 `D:\Android\Android Studio`。
+2. SDK 路径在 SDK Manager 中指定为 `D:\Android\Sdk`。
+3. 装完在 SDK Manager 里勾装 **Android SDK Platform**（API 34/35 任一即可，Capacitor 8 需要 targetSdk 36 对应的最新平台；以 SDK Manager 默认推荐为准，通常装最新稳定版）+ **Android SDK Platform-Tools** + **Build-Tools**。
+4. 验证：`D:\Android\Sdk\platform-tools\adb.exe devices` 能运行（连手机前可能只显示空列表）。
+
+---
+
+## 5. 手机端工程结构（相对电脑端新增/变更）
+
+```
+new-todolist/
+├── package.json            # 新增：前端依赖与脚本（Capacitor + 插件）
+├── capacitor.config.json   # 新增：appId=com.zcs.todo, appName="To Do", webDir="static"
+├── static/
+│   ├── index.html          # 复用：增加"按平台分支"逻辑（手机端单击编辑等）
+│   └── store.js            # 新增：手机端存储+统计+备份逻辑（ES module，可被 node --test import）
+├── android/                # Capacitor 生成（build/、local.properties 等需 gitignore）
+├── assets/                # 复用：图标源（生成安卓各尺寸）
+├── tests/
+│   ├── test_app.py         # 电脑端单测（保持全绿，44 个）
+│   └── test_store.mjs      # 新增：store.js 的 node --test 单测
+└── .gitignore              # 更新：加 node_modules/、android/app/build/、android/.gradle/、android/local.properties、*.keystore
+```
+
+- `store.js` 写成 **ES module**（`export` 函数）以被 `node --test` 直接 `import`；在浏览器里用 `<script type="module">` 引入，并显式把需要的函数挂到 `window` 供 `index.html` 调用。
+- 必须更新 `.gitignore`，避免把构建产物和签名密钥提交进仓库。
+
+---
+
+## 6. 存储层（手机端）
+
+存储键名（与 DESIGN 一致）：
+- 数据：`dailytodo.tasks.v1`
+- 快照：`dailytodo.snapshots.v1`
+
+`static/store.js` 导出的纯函数（移植自 `app.py`，不依赖浏览器/网络，可测）：
+- `load()` / `save(tasks)`：读写 localStorage 数据
+- `loadSnaps()` / `saveSnaps(snaps)`：读写快照（保留最近 5 份）
+- `snapshot()`：改动**前**存一份当前全量数据（直接服务「误删还原」）
+- `addTask / toggle / editTask / deleteTask`：增删改与完成状态（完成时写 `completed_at`，取消则清空）
+- `undo()`：撤销上一次改动（弹出最近一份快照）
+- `computeStats()`：今日完成/总数、本周完成、连续打卡天数、今日完成率、近 7 天完成数趋势（纯 SVG 由前端画）
+- `importData(json)`：**字段归一化**——缺 `date` 用 `created_at` 日期补齐、缺 `completed_at` 近似取 `created_at`、类型兜底；保证能吃电脑端导出的 `tasks.json` 且来回搬不丢数据；导入语义 = **覆盖**（覆盖前自动存快照）
+- `exportData()`：先 `Filesystem` 把 JSON 落盘临时文件 → 再 `Share` 调起系统分享面板（发微信/存到「文件」）。*Share 只能分享「文件路径」或「纯文本」，故需先用 Filesystem 落盘拿到路径。*
+
+边界处理：
+- 捕获 `QuotaExceededError`，提示「存储已满，请导出备份并清理旧数据」。
+- **卸载或清理会清空 localStorage**（数据在 App 内部）—— 界面与帮助弹层都持续提醒定期导出。
+
+---
+
+## 7. 前端改造（按平台分支）
+
+在 `static/index.html` 内以 `Capacitor.isNativePlatform()` 分支实现手机端特有行为（桌面端逻辑不变）：
+
+| 项 | 手机端处理 |
+|---|---|
+| 编辑触发 | **单击文字进入编辑**（桌面端仍为双击）。同一份 `index.html` 内分支，互不影响 |
+| 取消编辑 | 手机无 Esc 键 → 编辑态旁显示「保存 / 取消」两个小按钮；安卓返回键 = 取消编辑 |
+| 软键盘 | 键盘「完成」键不一定触发标准 Enter → 除 keydown 外，额外监听表单 submit / 输入框确认事件，并提供明确「保存」按钮兜底；键盘弹出时确保输入框可见不被遮挡 |
+| 跨天刷新 | 监听 App 回到前台（`App` 插件 `appStateChange`）/ 页面可见性（`visibilitychange`），发现日期已变就自动刷新到新「今天」 |
+| 安全区 | 适配刘海/挖孔/底部手势条（已有 `viewport-fit=cover` + `env(safe-area-inset-*)`，沿用 demo 写法） |
+| 返回键 | `App` 插件 `backButton`：统计面板开着先关面板；编辑中按返回 = 取消编辑；否则走默认 |
+| 屏幕方向 | **锁定竖屏**：`android/app/src/main/AndroidManifest.xml` 的 `<activity>` 加 `android:screenOrientation="portrait"`（或后续用 `@capacitor/screen-orientation` 插件） |
+| 窄屏排版 | 日期导航条、统计指标卡、趋势图在窄屏重排，图表字号适当放大 |
+| 顶部布局 | 标题「每日任务清单」与日期导航居中呈现 |
+| 导入 | 沿用原生 `<input type="file">`（与电脑端一致，零插件）；若真机 WebView 不支持再换社区文件选择插件 |
+
+导出/导入入口：不放主工具栏常驻，统一收进右下角圆形「!」帮助按钮弹层（与 DESIGN 3.8 一致）。首次启动（localStorage 标记）轻提示引导用户点「!」查看说明与备份入口。
+
+---
+
+## 8. 构建与安装流水线（debug APK）
+
+> 以下命令**尚未执行**，仅记录标准流程。
+
+1. 安装依赖：`npm install`
+2. 初始化 Capacitor 安卓工程：`npx cap add android`（生成 `android/` 目录与 `capacitor.config.json` 关联）
+3. 同步前端到原生：`npx cap sync android`（把 `static/` 拷贝进 `android/app/src/main/assets/public`）
+4. 构建 APK（二选一）：
+   - 命令行：`npx cap build android`（直接产出 debug APK）
+   - 或图形：`npx cap open android` 打开 Android Studio，点 Run ▶ 或 Build → Build Bundle(s)/APK(s) → Build APK(s)
+5. 产出位置：`android/app/build/outputs/apk/debug/app-debug.apk`
+6. 数据线安装：`adb install -r android/app/build/outputs/apk/debug/app-debug.apk`（`-r` = 覆盖安装，便于反复调试）
+
+**华为 Pura 70 Pro 连接与安装步骤：**
+1. 开启开发者选项：设置 → 关于手机 → 连续点击「HarmonyOS 版本」7 次，提示「您正处于开发者模式」→ 返回 设置 → 系统和更新 → 开发人员选项。
+2. 开发人员选项内打开：**USB 调试** 与 **「仅充电」模式下允许 ADB 调试**（开启后者后 ADB 不受连接模式限制，更稳）。
+3. 数据线连电脑，手机弹「USB 连接方式」选 **传输文件**；首次弹「是否允许 USB 调试」勾选「始终允许使用这台计算机进行调试」→ 确定。
+4. 电脑验证：`adb devices` 应列出设备序列号并带 `device`。
+5. 安装：`adb install -r app-debug.apk`。
+6. 若安装被拦：设置 → 系统和更新 → 纯净模式 → **关闭**；或 设置 → 安全 → 更多安全设置 → 外部来源应用安装 → 允许。并在「应用管控中心」对该应用点「允许」。
+
+> 注意：调试完建议**关闭「开发人员选项」**，避免误触导致设备异常（华为官方建议）。
+
+---
+
+## 9. 数据桥（导出/导入 JSON，两端唯一桥梁）
+
+- 字段与电脑端完全一致（`id/content/done/created_at/date/completed_at`），并做**同样的字段归一化**，保证来回搬不丢数据。
+- 导出（手机 → 电脑）：`Filesystem` 落盘临时 `.json` → `Share` 调系统分享面板 → 微信/文件。
+- 导入（电脑 → 手机 或 反向）：`<input type="file">` 选文件 → 读文本 → 归一化 → **覆盖**（覆盖前自动快照）。
+- 不做「合并」——合并带来去重/冲突麻烦，自用场景覆盖+快照已足够。
+
+---
+
+## 10. 测试方案（遵循 AGENTS.md：改完有测试且全绿）
+
+| 范围 | 方式 |
+|---|---|
+| JS 存储与统计逻辑 | `node --test` 直接 `import static/store.js`，覆盖：增删改、勾选写/清 `completed_at`、导入字段归一化、快照与撤销、统计（今日/本周/连续打卡/完成率/近 7 天趋势） |
+| 电脑端不回归 | 现有 44 个 Python 测试继续全绿；「按平台分支」后 `test_edit_triggered_by_dblclick`、`test_single_click_no_longer_starts_edit`、输入法保护/空内容提示用例不变 |
+| 真机验收 | 装到 Pura 70 Pro 跑一遍：加 → 勾 → 改 → 删 → 撤销 → 统计 → 导出 → 导入 → 翻历史日期 |
+
+---
+
+## 11. 安全与边界
+
+- 仅本地、不联网；单用户自用，不做登录鉴权（与电脑端一致）。
+- 导入校验：仅接受合法任务数组，校验字段类型，忽略多余字段，防脏数据；导入前必做自动快照。
+- 渲染对 `content` 做 HTML 转义防 XSS（沿用电脑端做法）。
+- 捕获 `QuotaExceededError` 并提示导出/清理。
+- 卸载 App 清空 localStorage → 持续提醒定期导出备份。
+
+---
+
+## 12. 风险与已识别的坑
+
+复用 DESIGN_手机端_v1.0.md 第 8 节 1–11，补充华为 / 鸿蒙特有项：
+
+| # | 风险 | 应对 |
+|---|---|---|
+| 1–11 | （见 DESIGN 第 8 节）软键盘完成键、双击缩放、无 Esc、跨天、卸载清空、图标安全区、配额、换签名、首次配置繁琐、文件选择、首次提示 | （见 DESIGN） |
+| 12 | **鸿蒙 NEXT 不兼容 APK** | Pura 70 Pro 当前为 HarmonyOS 4.2（兼容 APK）。若弹「升级到 HarmonyOS NEXT / 5.x」提示，**不要升级**，否则安卓 APK 无法运行。待 App 稳定后再单独评估鸿蒙原生方案 |
+| 13 | **纯净模式拦截 debug APK 安装** | 设置 → 系统和更新 → 纯净模式 → 关闭；或允许「外部来源应用安装」+ 应用管控中心对该应用「允许」 |
+| 14 | **「监控 ADB 安装应用」拦截** | 开发人员选项内建议关闭「监控 ADB 安装应用」避免安装被拦 |
+| 15 | **USB 连接模式** | 连接方式选「传输文件」；开启「仅充电模式下允许 ADB 调试」更稳；首次勾选「始终允许」 |
+| 16 | **系统 JDK 22 误指给 Gradle** | 全程用 Android Studio 自带 JDK 17，环境变量/设置里不要指向 `C:` 盘的系统 JDK 22 |
+| 17 | **换 keystore 导致无法覆盖安装** | 始终用同一种打包方式（debug APK），不中途换签名文件 |
+
+---
+
+## 13. 实施步骤（与 DESIGN 第 7 节一致，细化命令）
+
+1. **装环境**：Android Studio + SDK → 全部 D 盘，验证 `adb devices` 能列出手机。
+2. **接入 Capacitor**：`npm init` 起 `package.json` → `npx cap init` → `npx cap add android` → 生成图标 → 更新 `.gitignore`。
+3. **写 `static/store.js`**：移植 `app.py` 纯逻辑（增删改 / 统计 / 完成时间 / 导入导出 / 快照与撤销）。
+4. **前端改造**：环境判断（JS 存储 ↔ HTTP 接口）+ 手机端适配（单击编辑 / 保存取消按钮 / 跨天刷新 / 安全区 / 窄屏排版 / 返回键）。
+5. **写 `node --test` 单测**并跑通；确认 44 个 Python 测试仍全绿。
+6. **构建 debug APK → `adb install -r` 数据线安装到 Pura 70 Pro**，真机验收。
+7. **提交**（遵循 AGENTS.md：每步改动 commit + 测试通过）。
+
+---
+
+## 14. 状态：方案已定，待开工
+
+| 项 | 结论 |
+|---|---|
+| 目标平台 | 华为 Pura 70 Pro（HarmonyOS 4.2，可运行安卓 APK） |
+| 数据 | 各用各的、不同步；靠导出 / 导入 JSON 手动搬 |
+| 技术路线 | Capacitor 8（一套前端 + 两种存储后端） |
+| 手机端存储 | localStorage + 改动前快照（5 份）+ 撤销 |
+| 编辑触发 | 单击文字进入编辑（配「保存 / 取消」按钮） |
+| 导出 / 导入 | Filesystem + Share 分享文件；原生 file input 导入 |
+| 屏幕 | 锁定竖屏 |
+| 名称 / 包名 | To Do / `com.zcs.todo` |
+| 环境安装位置 | 全部 D 盘（`D:\Android\`） |
+
+**下一步（等你下令才开始）**：装 Android Studio + SDK 到 D 盘 → 验证 `adb` 能识别手机。
