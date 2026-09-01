@@ -63,12 +63,12 @@
 | 手机端存储 | **localStorage**（App 内部小仓库） | 简单可靠、无权限问题 |
 | Node.js | v22.22.2 ✅（已装） | Capacitor 8 要求 Node 22+，**满足** |
 | npm | 10.9.7 ✅（已装） | 用于安装 Capacitor 及插件 |
-| Android Studio | **完整版**（非仅命令行 SDK） | 装 `D:\Android\Android Studio`；会自动装好 SDK 与 **JDK 17** |
+| Android Studio | **完整版**，版本 **≥ 2025.2.1（代号 Otter）** | 装 `D:\Android\Android Studio`；会自动装好 SDK 与 **JDK 17**（17+ 受支持，官方推荐 21）。**必须 ≥ 2025.2.1**，否则 Gradle 8.14 / AGP 8.13 无法运行 |
 | Android SDK | API 24+（minSdk 24 / Android 7.0） | 实际手机为 Android 12，远超最低要求 |
 | targetSdk | 36（Capacitor 8 绑定） | 满足谷歌每年要求 |
 | JDK | **使用 Android Studio 自带的 JDK 17** | **禁止把系统 JDK 22 指给 Gradle**（易报 `unsupported class file major version`） |
 | 构建工具 | Gradle（Capacitor/Android Studio 自动下载） | 无需手动安装 |
-| 插件（官方） | `@capacitor/core` + `@capacitor/cli` + `@capacitor/android` + `@capacitor/filesystem` + `@capacitor/share` + `@capacitor/app` | Filesystem/Share 用于导出分享真正 `.json` 文件；App 用于返回键与前后台监听 |
+| 插件（官方） | `@capacitor/core` + `@capacitor/cli` + `@capacitor/android` + `@capacitor/filesystem` + `@capacitor/share` + `@capacitor/app` + `@capacitor/system-bars` + `@capacitor/splash-screen` | Filesystem/Share 用于导出分享真正 `.json` 文件；App 用于返回键与前后台监听；System Bars 管理状态栏/导航栏边到边（Capacitor 8 已移除旧 `adjustMarginsForEdgeToEdge` 配置）；Splash Screen 用于启动闪屏 |
 | 测试 | **Node 22 自带 `node --test`** | 零第三方依赖，直接 `import static/store.js` 做单测 |
 | 安装包 | **debug APK**（自用，无需签名） | 始终同一种方式打包，保证可覆盖安装 |
 | 安装方式 | 数据线 + `adb install -r` | 或数据线拷 APK 到手机点安装 |
@@ -78,6 +78,8 @@
 ## 4. 环境安装方案（全部 D 盘，用户明确要求）
 
 > 本步**尚未执行**，仅记录方案。预计占用 20~30G，D 盘当前剩余 109G，足够。
+>
+> **版本红线**：Android Studio **必须 ≥ 2025.2.1（Otter）**。旧版（2024.x 及更早）装好后，Capacitor 8 要求的 Gradle 8.14 / AGP 8.13 无法运行，会直接构建报错——下载前先确认版本号。
 
 | 内容 | 安装路径 |
 |---|---|
@@ -117,12 +119,27 @@ new-todolist/
 - `store.js` 写成 **ES module**（`export` 函数）以被 `node --test` 直接 `import`；在浏览器里用 `<script type="module">` 引入，并显式把需要的函数挂到 `window` 供 `index.html` 调用。
 - 必须更新 `.gitignore`，避免把构建产物和签名密钥提交进仓库。
 
+### 5.1 实现起点：以 demo 为蓝本（已与用户确认）
+
+正式代码**以 `demo/mobile_v1_demo.html` 为起点改造**，不从头重写：该 demo 已是自带 `localStorage`、含增删改/勾选/撤销/统计/导入导出的完整原型，逻辑可直接抽成 `static/store.js`。改造时必须对齐以下 demo 与正式版的差异：
+
+- **存储键名**：demo 用 `dailytodo.demo.tasks` / `dailytodo.demo.snapshots`；正式版统一改为设计文档约定的 `dailytodo.tasks.v1` / `dailytodo.snapshots.v1`（去掉 `.demo.`）。
+- **导出方式**：demo 用浏览器 `Blob` + `<a download>` 演示下载，**真机 Capacitor WebView 里不可靠**；正式版必须改用 Filesystem 落盘 + Share 调系统分享面板（与设计 3.4 一致）。
+- **状态栏**：demo 自己画了一个**假状态栏**（时间/电量），正式版须删除，改由真机系统状态栏 + `@capacitor/system-bars` 插件管理，否则会与系统栏重叠。
+- **移除演示桩**：demo 里的 `seed()` 模拟数据、`.device`/`.notch` 手机外壳、`.caption` 说明文字仅用于桌面预览，正式版不保留（安全区用真机 `env(safe-area-inset-*)`）。
+
+### 5.2 双模式最大坑：现有 index.html 的绝对路径 fetch
+
+当前 `static/index.html`（电脑端）通过 **7 处绝对路径 `fetch("/api/...")` + 一处 `<a href="/api/export">`** 访问 Python 后端。手机端没有服务器，这些路径在 Capacitor WebView（加载自 `https://localhost/`）里会全部 404。
+
+**必须抽一层「存储抽象」**：在同一份 `index.html` 内，用 `Capacitor.isNativePlatform()` 分支——桌面端走原 `fetch`，手机端走 `store.js` 的 `localStorage`；所有读写都经由这个抽象，业务代码不出现裸 `fetch("/api/...")`。这一步是「同一份前端两平台」能否成立的关键，优先级最高。
+
 ---
 
 ## 6. 存储层（手机端）
 
 存储键名（与 DESIGN 一致）：
-- 数据：`dailytodo.tasks.v1`
+- 数据：`dailytodo.tasks.v1`（注意：demo 原型用的是 `dailytodo.demo.tasks`，正式版以本命名为准，去掉 `.demo.`）
 - 快照：`dailytodo.snapshots.v1`
 
 `static/store.js` 导出的纯函数（移植自 `app.py`，不依赖浏览器/网络，可测）：
@@ -151,7 +168,7 @@ new-todolist/
 | 取消编辑 | 手机无 Esc 键 → 编辑态旁显示「保存 / 取消」两个小按钮；安卓返回键 = 取消编辑 |
 | 软键盘 | 键盘「完成」键不一定触发标准 Enter → 除 keydown 外，额外监听表单 submit / 输入框确认事件，并提供明确「保存」按钮兜底；键盘弹出时确保输入框可见不被遮挡 |
 | 跨天刷新 | 监听 App 回到前台（`App` 插件 `appStateChange`）/ 页面可见性（`visibilitychange`），发现日期已变就自动刷新到新「今天」 |
-| 安全区 | 适配刘海/挖孔/底部手势条（已有 `viewport-fit=cover` + `env(safe-area-inset-*)`，沿用 demo 写法） |
+| 安全区 / 状态栏 | 适配刘海/挖孔/底部手势条（`viewport-fit=cover` + `env(safe-area-inset-*)`，沿用 demo 写法）。**Capacitor 8 已移除 `android.adjustMarginsForEdgeToEdge` 配置**，改用 `@capacitor/system-bars` 插件管理状态栏/导航栏边到边；并**删除 demo 自绘的假状态栏**，由真机系统状态栏接管（设浅色文字以适配米色背景） |
 | 返回键 | `App` 插件 `backButton`：统计面板开着先关面板；编辑中按返回 = 取消编辑；否则走默认 |
 | 屏幕方向 | **锁定竖屏**：`android/app/src/main/AndroidManifest.xml` 的 `<activity>` 加 `android:screenOrientation="portrait"`（或后续用 `@capacitor/screen-orientation` 插件） |
 | 窄屏排版 | 日期导航条、统计指标卡、趋势图在窄屏重排，图表字号适当放大 |
@@ -166,12 +183,13 @@ new-todolist/
 
 > 以下命令**尚未执行**，仅记录标准流程。
 
-1. 安装依赖：`npm install`
-2. 初始化 Capacitor 安卓工程：`npx cap add android`（生成 `android/` 目录与 `capacitor.config.json` 关联）
+1. 安装依赖：`npm install`（依赖版本在 `package.json` 中锁为 `@capacitor/*@^8.0.0`，避免日后误装 v9 与工程对不上）
+2. 初始化 Capacitor 配置：`npx cap init`（生成 `capacitor.config.json`，填入 `appId=com.zcs.todo`、`appName="To Do"`、`webDir="static"`）；再 `npx cap add android` 生成 `android/` 原生工程
+   - 生成图标 / 闪屏：安装 `@capacitor/assets` 后运行 `npx capacitor-assets generate`（读取 `resources/icon.png` 1024×1024 与 `resources/splash.png`，输出安卓各尺寸；源图用 `assets/icon_source.png`）
 3. 同步前端到原生：`npx cap sync android`（把 `static/` 拷贝进 `android/app/src/main/assets/public`）
-4. 构建 APK（二选一）：
-   - 命令行：`npx cap build android`（直接产出 debug APK）
-   - 或图形：`npx cap open android` 打开 Android Studio，点 Run ▶ 或 Build → Build Bundle(s)/APK(s) → Build APK(s)
+4. 构建 debug APK（二选一，**注意：不要直接用 `npx cap build android`，那是打「发布版」且需要签名**）：
+   - 命令行（推荐）：`npx cap sync android` 后 `cd android && gradlew assembleDebug`（Windows 用 `gradlew.bat assembleDebug`）
+   - 或图形：`npx cap open android` 打开 Android Studio → Build → Build Bundle(s)/APK(s) → Build APK(s)，产出 debug 包无需签名
 5. 产出位置：`android/app/build/outputs/apk/debug/app-debug.apk`
 6. 数据线安装：`adb install -r android/app/build/outputs/apk/debug/app-debug.apk`（`-r` = 覆盖安装，便于反复调试）
 
@@ -229,6 +247,8 @@ new-todolist/
 | 15 | **USB 连接模式** | 连接方式选「传输文件」；开启「仅充电模式下允许 ADB 调试」更稳；首次勾选「始终允许」 |
 | 16 | **系统 JDK 22 误指给 Gradle** | 全程用 Android Studio 自带 JDK 17，环境变量/设置里不要指向 `C:` 盘的系统 JDK 22 |
 | 17 | **换 keystore 导致无法覆盖安装** | 始终用同一种打包方式（debug APK），不中途换签名文件 |
+| 18 | **现有 index.html 的绝对 `/api/...` fetch 在手机端 404** | 抽「存储抽象层」按 `Capacitor.isNativePlatform()` 分支；手机端走 `store.js`，禁止裸 `fetch("/api/...")`（见第 5.2 节） |
+| 19 | **demo 自绘假状态栏与真机系统栏重叠** | 删除 demo 的 `.statusbar`/`.notch`，用 `@capacitor/system-bars` 管真机状态栏（Capacitor 8 已移除旧边到边配置） |
 
 ---
 
