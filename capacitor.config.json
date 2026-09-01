@@ -1,0 +1,14 @@
+{
+  "appId": "com.zcs.todo",
+  "appName": "To Do",
+  "webDir": "static",
+  "server": {
+    "androidScheme": "https"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "androidScaleType": "CENTER_CROP",
+      "launchShowDuration": 1200
+    }
+  }
+}

@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <title>每日任务清单</title>
 <style>
   :root {
@@ -152,6 +152,81 @@
     box-shadow: 0 8px 24px rgba(0,0,0,.18); z-index: 50;
   }
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* ===================== 手机端适配 ===================== */
+  /* 平台分支：由 JS 检测后给 body 加 is-native / is-web */
+  .mobile-only { display: none; }
+  body.is-native .mobile-only { display: block; }
+  body.is-native .fab-help.mobile-only { display: inline-flex; }
+  body.is-native .web-only { display: none; }
+
+  /* hidden 属性必须能压过上面的 display 规则，否则弹层 / 历史日期提示条关不掉
+     （[hidden] 的默认样式优先级低于类选择器，会被 display:block 覆盖） */
+  [hidden] { display: none !important; }
+
+  /* 安全区：刘海屏 / 挖孔屏 / 手势条不被遮挡。桌面端 env() 为 0，不影响原布局 */
+  body {
+    padding-top: calc(36px + env(safe-area-inset-top, 0px));
+    padding-bottom: calc(36px + env(safe-area-inset-bottom, 0px));
+    padding-left: calc(16px + env(safe-area-inset-left, 0px));
+    padding-right: calc(16px + env(safe-area-inset-right, 0px));
+  }
+
+  @media (max-width: 480px) {
+    body {
+      padding-top: calc(14px + env(safe-area-inset-top, 0px));
+      padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+      padding-left: calc(12px + env(safe-area-inset-left, 0px));
+      padding-right: calc(12px + env(safe-area-inset-right, 0px));
+    }
+    header h1 { font-size: 27px; margin-bottom: 4px; }
+    header p.date { font-size: 13px; }
+    header { margin-bottom: 14px; }
+    .card { padding: 14px; border-radius: 16px; }
+    .metric-grid { gap: 8px; }
+    .metric { padding: 10px 8px; }
+    .metric .num { font-size: 22px; }
+    .add-row { gap: 6px; }
+    .add-row input { padding: 10px; font-size: 16px; } /* 16px 可避免 iOS 聚焦时自动放大 */
+    .btn, .nav-btn { font-size: 13px; padding: 8px 11px; }
+  }
+
+  /* 手机端编辑态：输入框 + 保存/取消按钮 */
+  .edit-row { display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0; }
+  .edit-row .edit-input { flex: 1 1 0; min-width: 0; }
+  .edit-actions { display: flex; gap: 6px; flex: none; }
+  .edit-actions button {
+    padding: 8px 12px; font-size: 13px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--card); cursor: pointer;
+  }
+  .edit-actions .save { background: var(--primary); color: #fff; border-color: var(--primary); font-weight: 600; }
+
+  /* 帮助悬浮按钮（手机端） */
+  .fab-help {
+    position: fixed; right: calc(16px + env(safe-area-inset-right, 0px));
+    bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+    width: 50px; height: 50px; border-radius: 50%;
+    background: var(--primary); color: #fff; font-size: 22px; font-weight: 700;
+    border: none; box-shadow: 0 6px 18px rgba(120,90,40,.28);
+    cursor: pointer; align-items: center; justify-content: center; z-index: 40;
+  }
+
+  /* 底部弹层 */
+  .sheet-backdrop {
+    position: fixed; inset: 0; background: rgba(58,50,38,.42); z-index: 45;
+  }
+  .sheet {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 46;
+    background: var(--card); border-radius: 18px 18px 0 0;
+    padding: 18px 18px calc(18px + env(safe-area-inset-bottom, 0px));
+    box-shadow: 0 -8px 28px rgba(120,90,40,.18);
+    max-height: 80vh; overflow-y: auto;
+  }
+  .sheet h3 { margin: 0 0 12px; font-size: 17px; color: #5a4a32; }
+  .sheet ul { margin: 0 0 16px; padding-left: 20px; font-size: 13px; color: var(--muted); line-height: 1.75; }
+  .sheet-actions { display: flex; gap: 10px; margin-bottom: 12px; }
+  .sheet-actions .btn { flex: 1; text-align: center; justify-content: center; }
+  .sheet .btn-close { width: 100%; text-align: center; }
 </style>
 </head>
 <body>
@@ -174,8 +249,8 @@
     <div class="stats" id="stats">共 0 项 · 已完成 0 项</div>
 
     <div class="toolbar">
-      <a class="btn" href="/api/export" download="tasks.json">导出备份</a>
-      <button class="btn" id="importBtn" type="button">导入备份</button>
+      <a class="btn web-only" id="exportLink" href="/api/export" download="tasks.json">导出备份</a>
+      <button class="btn web-only" id="importBtn" type="button">导入备份</button>
       <input type="file" id="importFile" accept=".json,application/json" hidden />
       <button class="btn btn-stat" id="statBtn" type="button">📊 统计</button>
     </div>
@@ -187,9 +262,12 @@
       <button class="btn-primary" id="addBtn" type="button">添加</button>
     </div>
 
-    <div class="note">
+    <div class="note web-only">
       数据保存在本机 <code>tasks.json</code>，不联网、不云同步。每次改动自动备份到 <code>backup/</code> 目录；导入前也会自动备份，可放心恢复。<br />
       <strong>双击</strong>任务文字可就地修改：回车保存、Esc 取消、点页面别处也会保存（用中文输入法时，先按回车选词上屏，再按回车保存）。
+    </div>
+    <div class="note mobile-only">
+      数据只存在这台手机里，不联网、不云同步。<strong>点一下</strong>任务文字就能改内容；右下角「!」里可以导出备份、导入备份，以及撤销误删（保留最近 5 步）。
     </div>
   </div>
 
@@ -204,7 +282,35 @@
 
 <div class="toast" id="toast"></div>
 
-<script>
+<!-- 手机端：帮助悬浮按钮 + 底部弹层（导出/导入收在这里） -->
+<button class="fab-help mobile-only" id="helpFab" type="button" aria-label="帮助">!</button>
+<div class="sheet-backdrop" id="sheetBackdrop" hidden></div>
+<div class="sheet mobile-only" id="helpSheet" hidden role="dialog" aria-modal="true" aria-label="帮助">
+  <h3>使用说明</h3>
+  <ul>
+    <li><strong>点一下</strong>任务文字即可修改，改完点「保存」。</li>
+    <li>点左侧方框勾选完成，再点一次取消。</li>
+    <li>数据只存在手机本地，不联网、不云同步。</li>
+    <li>误删了？「撤销」可恢复上一步（保留最近 5 步）。</li>
+    <li>换手机前先「导出备份」，新手机用「导入备份」恢复。</li>
+  </ul>
+  <div class="sheet-actions">
+    <button class="btn" id="exportBtn" type="button">导出备份</button>
+    <button class="btn" id="importBtnM" type="button">导入备份</button>
+    <button class="btn" id="undoBtn" type="button">撤销</button>
+  </div>
+  <button class="btn btn-close" id="closeSheet" type="button">关闭</button>
+</div>
+
+<script type="module">
+  import * as Store from "./store.js";
+
+  // —— 平台判定 ——
+  // 真机上 Capacitor 由原生层把 core 注入到 window.Capacitor；桌面浏览器没有这个全局。
+  // 注意不能用「裸模块名」形式的动态 import：网页是未打包的静态资源，浏览器解析不了。
+  const IS_NATIVE = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+  document.body.classList.add(IS_NATIVE ? "is-native" : "is-web");
+
   // —— 接口封装 ——
   // 统一解析错误响应：服务器若返回 HTML 错误页（如 501「方法不支持」），
   // 直接 r.json() 会抛出 "Unexpected token '<'"，这里换成可读提示。
@@ -227,7 +333,8 @@
       + "请重启应用（stop.bat → start.vbs）后重试。";
   }
 
-  const api = {
+  // ===== 网页端（电脑）：走 Python 后端 =====
+  const webApi = {
     async list(date) {
       const r = await fetch("/api/tasks?date=" + encodeURIComponent(date));
       if (!r.ok) throw new Error(await friendlyError(r, "加载失败"));
@@ -266,7 +373,89 @@
       if (!r.ok) throw new Error(await friendlyError(r, "统计数据获取失败"));
       return r.json();
     },
+    async importRaw(text) {
+      const r = await fetch("/api/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: text,
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error || "导入失败");
+      return j;
+    },
+    async exportAll() {
+      window.location.href = "/api/export";
+    },
+    async undo() {
+      throw new Error("网页端请从 backup/ 目录恢复，或用「导入备份」");
+    },
   };
+
+  // ===== 手机端（App 内）：走本地存储，不联网 =====
+  // 说明：数据以「全量数组」存在 localStorage，按 date 字段过滤出当天任务。
+  const nativeApi = {
+    async list(date) {
+      const all = Store.load();
+      return {
+        tasks: all.filter((t) => t.date === date),
+        today: Store.todayStr(),
+        viewed: date,
+      };
+    },
+    // 所有写操作前先存快照，供「撤销」使用（保留最近 5 步）
+    async add(content) {
+      const all = Store.load();
+      Store.snapshot(all);
+      const t = Store.addTask(all, content);
+      Store.save(all);
+      return t;
+    },
+    async toggle(id) {
+      const all = Store.load();
+      Store.snapshot(all);
+      Store.toggleTask(all, id);
+      Store.save(all);
+      return {};
+    },
+    async edit(id, content) {
+      const all = Store.load();
+      Store.snapshot(all);
+      Store.editTask(all, id, content);
+      Store.save(all);
+      return {};
+    },
+    async remove(id) {
+      const all = Store.load();
+      Store.snapshot(all);
+      Store.deleteTask(all, id);
+      Store.save(all);
+      return {};
+    },
+    async stats() {
+      return Store.computeStats(Store.load(), Store.todayStr());
+    },
+    async importRaw(text) {
+      const parsed = JSON.parse(text);
+      const arr = Array.isArray(parsed) ? parsed : (parsed && parsed.tasks) || [];
+      if (!Array.isArray(arr)) throw new Error("数据格式错误：应为任务数组");
+      const all = Store.load();
+      Store.snapshot(all);
+      const next = Store.importData(arr);
+      Store.save(next);
+      return { count: next.length };
+    },
+    async exportAll() {
+      await Store.exportData(Store.load());
+    },
+    async undo() {
+      const prev = Store.undo();
+      if (prev === null) return { ok: false };
+      Store.save(prev);
+      return { ok: true };
+    },
+  };
+
+  const api = IS_NATIVE ? nativeApi : webApi;
 
   const listEl = document.getElementById("list");
   const statsEl = document.getElementById("stats");
@@ -377,8 +566,10 @@
     }
   }
 
-  // —— 就地编辑（双击触发；回车保存但兼容中文输入法）——
-  function startEdit(span) {
+  // —— 就地编辑 ——
+  // withButtons=true（手机端）：输入框旁边给「保存 / 取消」按钮
+  // withButtons=false（电脑端）：回车保存 / Esc 取消 / 点别处保存
+  function startEdit(span, withButtons) {
     if (span.querySelector && span.querySelector("input")) return;
     const li = span.closest("li");
     const id = Number(li.dataset.id);
@@ -387,9 +578,6 @@
     input.className = "edit-input";
     input.value = orig;
     input.maxLength = 500;
-    span.replaceWith(input);
-    input.focus();
-    input.select();
     let finished = false;
 
     // byBlur=true 表示由失焦触发；此时无法停留在编辑态（会抢焦点），故还原
@@ -425,29 +613,64 @@
       if (ev.key === "Enter") { ev.preventDefault(); commit(false); }
       else if (ev.key === "Escape") { ev.preventDefault(); cancel(); }
     });
-    // 组字结束（候选词上屏）后按 Enter 才会走到上面的保存分支
-    input.addEventListener("compositionend", () => { /* 无需处理，等待下一次 Enter */ });
-    input.addEventListener("blur", () => commit(true));
+
+    if (withButtons) {
+      // 手机端刻意【不】绑 blur 自动保存：点「取消」按钮时必然先触发输入框 blur，
+      // 若绑了就会在用户点取消之前先把内容存掉，取消按钮形同虚设。
+      const row = document.createElement("div");
+      row.className = "edit-row";
+      const actions = document.createElement("div");
+      actions.className = "edit-actions";
+      const saveBtn = document.createElement("button");
+      saveBtn.type = "button";
+      saveBtn.className = "save";
+      saveBtn.textContent = "保存";
+      const cancelBtn = document.createElement("button");
+      cancelBtn.type = "button";
+      cancelBtn.textContent = "取消";
+      actions.appendChild(saveBtn);
+      actions.appendChild(cancelBtn);
+      row.appendChild(input);
+      row.appendChild(actions);
+      span.replaceWith(row);
+      input.focus();
+      input.setSelectionRange(input.value.length, input.value.length);
+      saveBtn.addEventListener("click", () => commit(false));
+      cancelBtn.addEventListener("click", () => cancel());
+    } else {
+      span.replaceWith(input);
+      input.focus();
+      input.select();
+      input.addEventListener("blur", () => commit(true));
+    }
   }
 
-  // 双击任务文字进入编辑（单击不触发，避免误触、也方便选中复制文字）
+  // 双击任务文字进入编辑（电脑端；单击不触发，避免误触、也方便选中复制文字）
+  // 注意：类名必须跟渲染时的 task-text 保持一致。此前这里误写成 content，
+  // 导致类名对不上、双击编辑完全失效（渲染用 task-text，监听却在找 content）。
   listEl.addEventListener("dblclick", e => {
     const t = e.target;
-    if (t.classList.contains("content")) startEdit(t);
+    if (t.classList.contains("task-text")) startEdit(t, false);
   });
 
   listEl.addEventListener("click", async e => {
     const t = e.target;
     const el = t.closest("[data-act]");
-    if (!el) return;
-    const id = Number(el.dataset.id);
-    const act = el.dataset.act;
-    try {
-      if (act === "toggle") await api.toggle(id);
-      else if (act === "del") await api.remove(id);
-      await load();
-    } catch (err) {
-      toast(err.message);
+    if (el) {
+      const id = Number(el.dataset.id);
+      const act = el.dataset.act;
+      try {
+        if (act === "toggle") await api.toggle(id);
+        else if (act === "del") await api.remove(id);
+        await load();
+      } catch (err) {
+        toast(err.message);
+      }
+      return;
+    }
+    // 手机端没有「双击」这个操作，改为单击任务文字即进入编辑，并带出保存 / 取消按钮
+    if (IS_NATIVE && t.classList.contains("task-text")) {
+      startEdit(t, true);
     }
   });
 
@@ -508,21 +731,16 @@
     return `<svg viewBox="0 0 ${w} ${h}" width="100%" height="${h}" role="img" aria-label="近7天完成数趋势">${bars}</svg>`;
   }
 
-  // —— 导入：FileReader 读成文本 → POST 原始 JSON 文本 ——
+  // —— 导入：读成文本 → 交给当前平台的 api ——
+  // 网页端 POST 给 Python 后端；手机端直接写进本地存储（顺带存快照，可用「撤销」退回）。
   importBtn.addEventListener("click", () => importFile.click());
   importFile.addEventListener("change", async e => {
     const file = e.target.files[0];
     if (!file) return;
     try {
       const text = await file.text();
-      const r = await fetch("/api/import", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: text,
-      });
-      const j = await r.json();
-      if (!r.ok) throw new Error(j.error || "导入失败");
-      toast(`导入成功，共 ${j.count} 项（已自动备份原数据）`);
+      const j = await api.importRaw(text);
+      toast(`导入成功，共 ${j.count} 项` + (IS_NATIVE ? "（可用「撤销」退回）" : "（已自动备份原数据）"));
       await load();
     } catch (err) {
       toast("导入失败：" + (err.message || "数据格式错误"));
@@ -530,6 +748,73 @@
       importFile.value = "";
     }
   });
+
+  // ================= 手机端专属交互 =================
+  const AppPlugin = (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App) || null;
+  const helpSheet = document.getElementById("helpSheet");
+  const sheetBackdrop = document.getElementById("sheetBackdrop");
+  const helpFab = document.getElementById("helpFab");
+
+  function openSheet() { helpSheet.hidden = false; sheetBackdrop.hidden = false; }
+  function closeSheet() { helpSheet.hidden = true; sheetBackdrop.hidden = true; }
+
+  if (helpFab) {
+    helpFab.addEventListener("click", openSheet);
+    document.getElementById("closeSheet").addEventListener("click", closeSheet);
+    sheetBackdrop.addEventListener("click", closeSheet);
+
+    document.getElementById("exportBtn").addEventListener("click", async () => {
+      closeSheet();
+      try { await api.exportAll(); }
+      catch (err) { toast("导出失败：" + err.message); }
+    });
+    document.getElementById("importBtnM").addEventListener("click", () => { closeSheet(); importFile.click(); });
+    document.getElementById("undoBtn").addEventListener("click", async () => {
+      closeSheet();
+      try {
+        const r = await api.undo();
+        toast(r.ok ? "已撤销上一步" : "没有可撤销的操作了");
+        await load();
+      } catch (err) { toast(err.message); }
+    });
+  }
+
+  // —— 返回键：弹层开着就先关弹层；否则连按两次（2 秒内）才退出，防误触 ——
+  let lastBackAt = 0;
+  function onBack() {
+    if (helpSheet && !helpSheet.hidden) { closeSheet(); return; }
+    const now = Date.now();
+    if (now - lastBackAt < 2000) {
+      if (AppPlugin && AppPlugin.exitApp) AppPlugin.exitApp();
+      return;
+    }
+    lastBackAt = now;
+    toast("再按一次返回键退出");
+  }
+
+  // —— 跨天自动刷新 ——
+  // App 挂在后台跨过零点再回前台，日期变了但页面不会自己重算，这里补上。
+  function checkDayRollover() {
+    const now = getTodayStr();
+    if (now === todayStr) return;
+    const wasViewingToday = (viewed === todayStr);
+    todayStr = now;
+    if (wasViewingToday) viewed = now;   // 正在看历史日期时，不强行跳回今天
+    renderHeaderDate();
+    load();
+  }
+
+  if (IS_NATIVE) {
+    if (AppPlugin && AppPlugin.addListener) {
+      AppPlugin.addListener("backButton", onBack);
+      AppPlugin.addListener("appStateChange", (st) => { if (st.isActive) checkDayRollover(); });
+    } else {
+      // 兜底：Capacitor 未注入 App 插件时，退回 Cordova 风格的 DOM 事件
+      document.addEventListener("backbutton", onBack, false);
+    }
+    document.addEventListener("visibilitychange", () => { if (!document.hidden) checkDayRollover(); });
+    setInterval(checkDayRollover, 60000);
+  }
 
   // 初始化
   renderHeaderDate();

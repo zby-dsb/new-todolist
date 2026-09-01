@@ -1,0 +1,25 @@
+{
+  "name": "new-todolist",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "每日任务清单 · 电脑端(Python 后端) + 手机端(Capacitor 8 + localStorage)",
+  "scripts": {
+    "sync": "cap sync android",
+    "build:android": "cap sync android && cd android && gradlew.bat assembleDebug",
+    "assets": "capacitor-assets generate",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.0.0",
+    "@capacitor/app": "^8.0.0",
+    "@capacitor/core": "^8.0.0",
+    "@capacitor/filesystem": "^8.0.0",
+    "@capacitor/share": "^8.0.0",
+    "@capacitor/splash-screen": "^8.0.0"
+  },
+  "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
+    "@capacitor/cli": "^8.0.0"
+  }
+}

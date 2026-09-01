@@ -432,6 +432,33 @@ class HttpTest(unittest.TestCase):
                  if f.startswith("tasks.") and f.endswith(".json")]
         self.assertTrue(len(files) >= 1)
 
+    def test_store_js_served_at_root(self):
+        # index.html 由 "/" 提供，页面内用相对路径 "./store.js" 引入模块，
+        # 所以根路径必须能取到 store.js，否则模块 404、页面白屏。
+        st, b = self.req("GET", "/store.js")
+        self.assertEqual(st, 200)
+        self.assertTrue(b.strip(), "store.js 返回了空内容")
+
+    def test_store_js_content_type_is_javascript(self):
+        # ES module 对 MIME 要求严格：必须是 text/javascript。
+        # 若返回 application/octet-stream，浏览器会拒绝执行模块（页面白屏）。
+        for path in ("/store.js", "/static/store.js"):
+            resp = self.raw_get(path)
+            head = resp.split("\r\n\r\n", 1)[0]
+            self.assertIn("200", head.split("\r\n")[0], "路径不可访问: %s" % path)
+            lines = [l for l in head.split("\r\n") if l.lower().startswith("content-type")]
+            self.assertTrue(lines, "缺少 Content-Type: %s" % path)
+            self.assertIn("text/javascript", lines[0].lower(),
+                          "%s 的 MIME 不是 javascript: %s" % (path, lines[0]))
+
+    def test_html_still_served_as_html(self):
+        # 改 MIME 推断时不要把页面本身弄坏
+        resp = self.raw_get("/")
+        head = resp.split("\r\n\r\n", 1)[0]
+        lines = [l for l in head.split("\r\n") if l.lower().startswith("content-type")]
+        self.assertTrue(lines)
+        self.assertIn("text/html", lines[0].lower())
+
 
 class FrontendTest(unittest.TestCase):
     """前端「就地编辑」交互的关键标记回归检查（防止改回去）。"""
@@ -459,6 +486,36 @@ class FrontendTest(unittest.TestCase):
         # 空白内容必须有提示，不能静默放弃修改
         self.assertIn("任务内容不能为空", self.html)
         self.assertIn("内容为空，已还原原文", self.html)
+
+    def test_render_class_matches_dblclick_selector(self):
+        # 曾经的 BUG：渲染用 class="task-text"，双击监听却去找 content，
+        # 两边对不上，导致「双击编辑」完全失效。这里把两侧抠出来比对，防止再改歪。
+        self.assertIn('class="task-text"', self.html)
+        self.assertIn('classList.contains("task-text")', self.html)
+        self.assertNotIn('classList.contains("content")', self.html)
+
+    def test_module_import_uses_relative_path(self):
+        # 必须是相对路径 ./store.js：手机端 Capacitor 的 webDir 就是 static/，
+        # 相对路径会解析成 https://<host>/store.js —— 正好对得上；
+        # 写成 /static/store.js 在手机上反而 404。
+        self.assertIn('from "./store.js"', self.html)
+        self.assertNotIn('from "/static/store.js"', self.html)
+
+    def test_platform_branch_present(self):
+        # 手机端 / 电脑端双模式的关键标记
+        self.assertIn("IS_NATIVE", self.html)
+        self.assertIn("nativeApi", self.html)
+        self.assertIn("webApi", self.html)
+
+    def test_no_bare_capacitor_import(self):
+        # 网页是未打包的静态资源，浏览器解析不了裸模块名，
+        # 真机一律走 window.Capacitor 全局。index.html 与 store.js 都不能出现。
+        self.assertNotIn('import("@capacitor/core")', self.html)
+        root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        with open(os.path.join(root, "static", "store.js"), "r", encoding="utf-8") as f:
+            js = f.read()
+        self.assertNotIn('import("@capacitor/core")', js)
+        self.assertIn("globalThis.Capacitor", js)
 
 
 if __name__ == "__main__":
