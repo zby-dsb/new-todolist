@@ -62,11 +62,13 @@
   .topbar h1 { margin: 0; font-size: 24px; font-weight: 800; letter-spacing: .5px; }
   .topbar .sub { font-size: 13px; color: var(--primary); font-weight: 600; margin-top: 2px; }
 
-  /* 可滚动内容区（含安全区内边距） */
-  .content {
+  /* 可滚动内容区（含安全区内边距）：改为 flex 列，让主卡片稳定占满高度 */
+  /* 注意：此处必须用 .page，不能复用 .content —— 否则会和任务文本的样式互相污染 */
+  .page {
     flex: 1; overflow-y: auto; padding: 16px 16px 90px;
     padding-top: max(16px, env(safe-area-inset-top));
     -webkit-overflow-scrolling: touch;
+    display: flex; flex-direction: column;
   }
 
   /* 卡片 */
@@ -74,7 +76,15 @@
     background: var(--card); border-radius: 28px 28px 22px 22px;
     box-shadow: 0 1px 2px rgba(120,90,40,.05), 0 10px 24px rgba(120,90,40,.06);
     padding: 16px; margin-bottom: 14px;
+    overflow: hidden; /* 子元素统一裁切到圆角内，避免直角溢出 */
   }
+  /* 主任务卡片：稳定占满内容区高度，内部列表滚动，圆角永不被裁成直角 */
+  .page > .card:not(.stats-panel) {
+    flex: 1 1 auto; min-height: 0;
+    display: flex; flex-direction: column;
+  }
+  /* 卡片内顶部/底部固定区不收缩 */
+  .card .banner, .card .stats-line, .card .toolbar, .card .add-row { flex: none; }
 
   /* 日期导航 */
   .datenav { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 12px; }
@@ -104,8 +114,25 @@
   .btn.ghost { background: transparent; box-shadow: none; color: var(--muted); }
   .btn.stat { margin-left: auto; }
 
-  /* 任务列表 */
-  ul.list { list-style: none; margin: 0; padding: 0; }
+  /* 任务列表：在卡片内独立滚动，圆角卡片高度稳定 */
+  ul.list {
+    list-style: none; margin: 0; padding: 0;
+    flex: 1 1 auto; min-height: 0;
+    overflow-y: auto; -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin; scrollbar-color: var(--primary-soft) transparent;
+  }
+  ul.list::-webkit-scrollbar { width: 6px; }
+  ul.list::-webkit-scrollbar-thumb { background: var(--primary-soft); border-radius: 6px; }
+  ul.list::-webkit-scrollbar-track { background: transparent; }
+
+  /* 列表底部滚动提示渐隐，暗示还有更多内容 */
+  .list-wrap { position: relative; flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+  .list-wrap::after {
+    content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 18px;
+    background: linear-gradient(to bottom, rgba(255,253,248,0), var(--card));
+    pointer-events: none; opacity: 0; transition: opacity .2s;
+  }
+  .list-wrap.scrollable::after { opacity: 1; }
   li.item {
     display: flex; align-items: center; gap: 12px;
     padding: 12px 6px; border-top: 1px solid rgba(0,0,0,.04);
@@ -118,9 +145,16 @@
     transition: all .18s;
   }
   .item.done .check { background: var(--done); border-color: var(--done); }
-  .item.done .content { color: var(--muted); text-decoration: line-through; }
-  .content { flex: 1; font-size: 16px; cursor: pointer; min-height: 26px; display: flex; align-items: center; word-break: break-all; }
-  .id-tag { color: var(--muted); font-size: 12px; width: 26px; flex: none; }
+  .item.done .task-text { color: var(--muted); text-decoration: line-through; }
+  /* 任务文本：最多两行，超出省略；不再撑高任务行，保证与编号/勾选/删除同一基线对齐 */
+  .task-text {
+    /* basis 必须为 0：否则超长文本的固有宽度会把删除按钮顶偏，导致各行右边缘不齐 */
+    flex: 1 1 0; min-width: 0; font-size: 16px; cursor: pointer;
+    line-height: 1.45; word-break: break-word; overflow-wrap: anywhere;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .id-tag { color: var(--muted); font-size: 12px; width: 28px; flex: none; font-variant-numeric: tabular-nums; }
   .btn-del {
     border: none; background: var(--danger-soft); color: var(--danger);
     border-radius: 12px; padding: 8px 12px; font-size: 13px; font-weight: 600; cursor: pointer;
@@ -226,7 +260,7 @@
           <span class="viewed" id="viewedDate"></span>
         </div>
       </div>
-      <div class="content">
+      <div class="page">
         <div class="card">
           <div class="banner" id="historyBanner" hidden>历史日期 · 仅不能「新增」任务（可勾选 / 编辑 / 删除）</div>
 
@@ -237,7 +271,9 @@
             <button class="btn stat" id="statBtn">📊 统计</button>
           </div>
 
-          <ul class="list" id="list"></ul>
+          <div class="list-wrap" id="listWrap">
+            <ul class="list" id="list"></ul>
+          </div>
 
           <div class="add-row" id="addRow">
             <input id="taskInput" type="text" placeholder="输入新任务，回车或点“添加”" maxlength="500" />
@@ -352,7 +388,7 @@
           li.innerHTML = `
             <span class="id-tag">#${t.id}</span>
             <span class="check" data-act="toggle">${t.done ? "✓" : ""}</span>
-            <span class="content" data-act="edit">${escapeHtml(t.content)}</span>
+            <span class="task-text" data-act="edit" title="${escapeAttr(t.content)}">${escapeHtml(t.content)}</span>
             <button class="btn-del" data-act="del">删除</button>`;
         }
         list.appendChild(li);
@@ -364,6 +400,12 @@
     $("addRow").hidden = !isToday;
     $("historyBanner").hidden = isToday;
     $("viewedDate").textContent = isToday ? "今天" : parse(viewed).toLocaleDateString("zh-CN", { month: "long", day: "numeric", weekday: "short" });
+
+    // 列表超出卡片高度时显示底部滚动渐隐提示
+    const lw = $("listWrap");
+    requestAnimationFrame(() => {
+      lw.classList.toggle("scrollable", $("list").scrollHeight > $("list").clientHeight + 2);
+    });
 
     if (editingId !== null) {
       const inp = $("editInput"); inp.focus(); inp.select();
