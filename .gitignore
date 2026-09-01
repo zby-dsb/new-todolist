@@ -27,5 +27,10 @@ android/captures/
 *.keystore
 *.jks
 
+# 打包产物（运行 打包.bat 重新生成，不入库）
+dist/
+gradle_build.log
+assets_gen.log
+
 # 代理/工具内部目录（非项目代码）
 .workbuddy/

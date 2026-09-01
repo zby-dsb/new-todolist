@@ -1,0 +1,72 @@
+@echo off
+chcp 65001 >nul
+setlocal
+
+echo ==========================================
+echo   每日任务清单 - 安装到手机
+echo ==========================================
+echo.
+
+set "ADB=D:\Android\Sdk\platform-tools\adb.exe"
+set "APK=%~dp0dist\每日任务清单-v1.0-debug.apk"
+
+if not exist "%ADB%" (
+    echo [错误] 找不到 adb：%ADB%
+    echo 请确认 D 盘的 Android SDK 没有被删除。
+    echo.
+    pause
+    exit /b 1
+)
+
+if not exist "%APK%" (
+    echo [错误] 找不到安装包：%APK%
+    echo 请先运行 打包.bat 生成安装包。
+    echo.
+    pause
+    exit /b 1
+)
+
+echo [1/4] 启动 adb 服务...
+"%ADB%" start-server >nul 2>&1
+
+echo [2/4] 检查手机连接...
+"%ADB%" devices
+
+echo.
+echo ---- 上面列表里应该出现你的手机 ----
+echo 如果显示 unauthorized（未授权）：
+echo   看手机屏幕，点「允许 USB 调试」
+echo   然后重新运行本脚本
+echo.
+echo 如果列表是空的：
+echo   1. 检查数据线是否插紧（有些线只能充电，不能传数据）
+echo   2. 手机「设置 - 系统和更新 - 开发人员选项」里打开「USB 调试」
+echo   3. 手机上把「USB 连接方式」改成「传输文件」
+echo.
+pause
+
+echo.
+echo [3/4] 正在安装...
+"%ADB%" install -r "%APK%"
+if errorlevel 1 (
+    echo.
+    echo [失败] 安装出错。常见原因：
+    echo   - 手机上弹出了「纯净模式」拦截 → 选「继续安装」
+    echo   - 存储空间不足 → 清理后重试
+    echo   - 手机提示「禁止安装」→ 设置里允许「未知来源应用」
+    echo.
+    pause
+    exit /b 1
+)
+
+echo.
+echo [4/4] 启动 App...
+"%ADB%" shell monkey -p com.zcs.todo 1 >nul 2>&1
+
+echo.
+echo ==========================================
+echo   安装完成！
+echo   去手机桌面上找「To Do」图标
+echo ==========================================
+echo.
+pause

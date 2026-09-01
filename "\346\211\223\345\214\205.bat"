@@ -1,0 +1,48 @@
+@echo off
+chcp 65001 >nul
+setlocal
+
+echo ==========================================
+echo   每日任务清单 - 重新打包
+echo ==========================================
+echo.
+echo 改完网页代码（static 目录下的文件）后，
+echo 运行这个脚本重新生成安装包。
+echo.
+
+set "JAVA_HOME=D:\Android\JDK21"
+set "ANDROID_HOME=D:\Android\Sdk"
+set "ANDROID_SDK_ROOT=D:\Android\Sdk"
+set "GRADLE_USER_HOME=D:\Android\gradle-home"
+
+cd /d "%~dp0"
+
+echo [1/2] 同步网页文件到安卓工程...
+call npx cap sync android
+if errorlevel 1 (
+    echo [失败] cap sync 出错
+    pause
+    exit /b 1
+)
+
+echo.
+echo [2/2] 编译安装包（首次约 6 分钟，之后约 1 分钟）...
+cd android
+call gradlew.bat assembleDebug --no-daemon
+cd ..
+if errorlevel 1 (
+    echo [失败] 编译出错，看上面的红色错误信息
+    pause
+    exit /b 1
+)
+
+copy /y "android\app\build\outputs\apk\debug\app-debug.apk" "dist\每日任务清单-v1.0-debug.apk" >nul
+
+echo.
+echo ==========================================
+echo   打包完成！
+echo   安装包在 dist 目录里
+echo   接下来运行「安装到手机.bat」
+echo ==========================================
+echo.
+pause
