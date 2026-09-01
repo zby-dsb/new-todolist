@@ -27,7 +27,7 @@
 new-todolist/
 ├── app.py                 # 后端：路由 + 接口 + 静态页面服务 + 自启浏览器 + PID/日志
 ├── static/
-│   └── index.html         # 前端：米色 UI（复用 demo/index2.html 并接入接口）
+│   └── index.html         # 前端：米色 UI（复用 demo/archive/index2.html 并接入接口）
 ├── tasks.json             # 数据文件（运行时生成，gitignore）
 ├── server.pid             # 运行中的进程号（gitignore，供 stop.bat 停止用）
 ├── app.log                # 运行日志（gitignore，出问题时排查）
@@ -41,7 +41,7 @@ new-todolist/
     ├── DESIGN.md          # 产品设计
     └── 技术方案.md         # 本文
 ```
-> 说明：`demo/index.html`、`demo/index2.html` 是前期可视化原型，仅作界面参考；正式前端以 `static/index.html` 为准，原型文件保留不删。
+> 说明：`demo/archive/index.html`、`demo/archive/index2.html` 是前期可视化原型，仅作界面参考；正式前端以 `static/index.html` 为准，原型文件保留不删。
 
 ## 4. 后端技术方案
 ### 4.1 技术选型
@@ -85,7 +85,7 @@ new-todolist/
 
 ## 5. 前端技术方案
 ### 5.1 界面
-- 直接复用 `demo/index2.html` 的米色 UI（标题居中、输入区在下、暖色调），把「内存假数据」改为「调接口拿真数据」。
+- 直接复用 `demo/archive/index2.html` 的米色 UI（标题居中、输入区在下、暖色调），把「内存假数据」改为「调接口拿真数据」。
 - **顶部显示今天日期**：标题「每日任务清单」下方用一行显示当天日期（如「2026年8月30日 星期日」），由前端用浏览器本地时间渲染（`toLocaleDateString('zh-CN', ...)`），强化「每日」感（暂不按日期分任务）。
 
 ### 5.2 与后端交互

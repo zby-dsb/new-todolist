@@ -53,7 +53,7 @@ Gradle（已本地化到 D:\Android\gradle-dists，wrapper 走 `file:///`）。
 ## 目录结构
 - `app.py` —— 后端服务（标准库 HTTP 服务 + 接口 + 自动备份 + 统计）
 - `static/index.html` —— 前端页面（米色 UI · 每日视图 · 统计面板 · 就地编辑）
-- `demo/` —— 前期可视化原型（仅作界面参考，不参与运行）
+- `demo/` —— 前期可视化原型（已归档到 `demo/archive/`，仅作界面参考，不参与运行）；当前可运行原型见 `demo/mobile_v1_demo.html`
 - `docs/` —— 设计文档与技术方案（`DESIGN_v1.1.md` / `技术方案_v1.1.md` 等）
 - `tests/` —— 单元测试 + 接口冒烟测试
 - `tasks.json` —— 本地数据（运行态，不纳入版本库）

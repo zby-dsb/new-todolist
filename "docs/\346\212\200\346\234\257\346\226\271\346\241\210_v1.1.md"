@@ -56,7 +56,7 @@ new-todolist/
     ├── 技术方案.md         # v0.1 技术方案
     └── 技术方案_v1.1.md    # 本文
 ```
-> 说明：`demo/index.html`、`demo/index2.html`、`demo/index_v1.1.html` 为前期可视化原型（含纯前端模拟 demo），仅作界面参考；正式前端以 `static/index.html` 为准。
+> 说明：`demo/archive/index.html`、`demo/archive/index2.html`、`demo/archive/index_v1.1.html` 为前期可视化原型（含纯前端模拟 demo），仅作界面参考；正式前端以 `static/index.html` 为准。
 
 ## 4. 后端技术方案
 ### 4.1 技术选型

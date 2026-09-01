@@ -37,7 +37,7 @@ MVP 阶段聚焦「最小可用闭环」，后续再迭代「每日」语义与�
 
 ## 6. 技术选型
 - 后端语言：Python 3，仅用标准库（`http.server` 提供接口与静态页面），不引入第三方库
-- 前端：HTML + CSS + JS 单页应用（沿用 `demo/index2.html` 米色界面风格）
+- 前端：HTML + CSS + JS 单页应用（沿用 `demo/archive/index2.html` 米色界面风格）
 - 存储：`tasks.json`（本地 JSON 文件），由后端读写；建议加入 `.gitignore`，避免把个人清单提交进仓库
 - 结构：接口层 / 存储层 / 前端分离，便于单元测试
 - 运行：本机启动小程序（提供 `http://localhost` 地址），浏览器打开即用；附启动快捷方式
