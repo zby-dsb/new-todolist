@@ -4,6 +4,32 @@
 
 ---
 
+## [手机端 v1.0] — 2026-09-01
+
+新增**手机端（Android / 鸿蒙 APK）**能力：用 Capacitor 8 把同一套网页前端装进安卓壳，
+数据在手机端走 App 内本地存储（不联网），与电脑端 Python 后端并存。可产出 debug APK 侧载安装。
+
+### 新增
+- Capacitor 8 工程（`android/`），JDK 21 编译，4 个官方插件：App / Filesystem / Share / SplashScreen。
+- `static/store.js`：存储 + 统计 + 快照撤销的纯函数层，浏览器与 Node 测试共用。
+- 前端按平台分支：`window.Capacitor.isNativePlatform()` 为真走本地存储，否则走 `/api/...` 后端。
+- 手机端交互：单击任务文字编辑（带保存/取消按钮）、安全区适配、跨天自动刷新、返回键连按退出、锁竖屏。
+- 导出/导入/撤销入口收进「!」帮助弹层。
+- 应用图标与启动画面（米色 `#C0A080` 同色系，取自源图主色）。
+- 一键脚本：`安装到手机.bat`（adb 安装启动）、`打包.bat`（cap sync + 构建）。
+
+### 踩坑记录（均已解决）
+- **中文用户名路径**：AGP 拒绝非 ASCII 路径，加 `android.overridePathCheck=true`（暂不迁移目录）。
+- **Java 版本**：Capacitor 8 插件要求 `languageVersion=21`，原 JDK 17 不满足，已装 JDK 21.0.12.1（D:\Android\JDK21）。
+- **Gradle 下载超时**：wrapper 默认源 10 秒 socket 超时，改腾讯云镜像预下载 + `file:///` 本地分发。
+- **`@capacitor/assets` 装不上**：依赖 sharp 需从 GitHub 下载二进制被代理掐断，改用 Pillow 脚本 `scripts/gen_icons.py` 生成图标。
+- **ES module 白屏**：后端补全 `/store.js` 路由并修正 `.js` 的 MIME 为 `text/javascript`。
+
+### 修复
+- 桌面端双击编辑失效：渲染用 `task-text` 类，但双击监听找 `content` 类，两边对不上导致双击无反应（已修正）。
+
+---
+
 ## [v1.1] — 2026-08-31
 
 在 v1.0 基础上把「每日」语义真正落地，并补充回顾能力与数据安全保障。继续坚持**零第三方依赖**。

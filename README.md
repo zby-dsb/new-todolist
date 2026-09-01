@@ -28,6 +28,25 @@ python app.py
 ```
 然后浏览器打开 http://127.0.0.1:8000/
 
+## 手机端（Android / 鸿蒙系统安卓 APK）
+
+同一套前端代码、两种存储后端：电脑端走 Python 后端，手机端走 App 内本地存储（不联网）。
+当前可产出 **debug APK**，支持安卓及鸿蒙系统（HarmonyOS 4.x，需保持安卓 APK 兼容，切勿升级到 HarmonyOS NEXT）。
+
+### 安装到手机（推荐：一键脚本）
+1. 手机用**数据线**连上电脑，并在「设置 → 系统和更新 → 开发人员选项」打开 **USB 调试**；
+   把「USB 连接方式」设为「传输文件」。
+2. 双击项目里的 `安装到手机.bat`。
+3. 若手机弹「允许 USB 调试」→ 勾选「一律允许」并点确定；若弹出「纯净模式」拦截 → 点「继续安装」。
+4. 装完去桌面找 **「To Do」** 图标即可打开。
+
+> 命令行方式：`D:\Android\Sdk\platform-tools\adb.exe install -r dist\每日任务清单-v1.0-debug.apk`
+
+### 重新打包
+修改前端后，双击 `打包.bat`（会执行 `cap sync` + Gradle 构建，产物输出到 `dist/`）。
+环境要求见 `docs/技术方案_手机端_v1.0.md`：**JDK 21**（D:\Android\JDK21）、Android SDK（D:\Android\Sdk）、
+Gradle（已本地化到 D:\Android\gradle-dists，wrapper 走 `file:///`）。
+
 ## 目录结构
 - `app.py` —— 后端服务（标准库 HTTP 服务 + 接口 + 自动备份 + 统计）
 - `static/index.html` —— 前端页面（米色 UI · 每日视图 · 统计面板 · 就地编辑）
