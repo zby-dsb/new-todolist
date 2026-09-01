@@ -11,6 +11,7 @@
 """
 import datetime
 import json
+import mimetypes
 import os
 import re
 import shutil
@@ -412,6 +413,13 @@ class Handler(BaseHTTPRequestHandler):
             self._api_export()
         elif path.startswith("/static/"):
             self._serve_static(path)
+        elif path == "/store.js":
+            # index.html 由 "/" 提供，页面内用相对路径 "./store.js" 引入存储模块。
+            # 相对路径是刻意的：手机端（Capacitor）webDir 就是 static/，
+            # "./store.js" 会解析成 https://<host>/store.js —— 正好对得上。
+            # 若改成 "/static/store.js"，手机端反而会 404。
+            # 所以这里让根路径也能取到 store.js，两端用同一份代码。
+            self._serve_static("/static/store.js")
         else:
             self._send_json(404, {"error": "not found"})
 
@@ -452,6 +460,25 @@ class Handler(BaseHTTPRequestHandler):
         except OSError:
             self._send_html(404, "<h1>index.html 未找到</h1>")
 
+    @staticmethod
+    def _guess_ctype(path):
+        """推断静态文件的 Content-Type。
+
+        关键点：ES module 对 MIME 有严格要求 —— .js 必须是 text/javascript。
+        原先这里把非 .html 一律返回 application/octet-stream，浏览器会直接
+        拒绝执行模块（"Failed to load module script"），导致整个页面白屏。
+        """
+        ext = os.path.splitext(path)[1].lower()
+        if ext in (".js", ".mjs"):
+            return "text/javascript"
+        if ext == ".html":
+            return "text/html"
+        if ext == ".css":
+            return "text/css"
+        if ext == ".json":
+            return "application/json"
+        return mimetypes.guess_type(path)[0] or "application/octet-stream"
+
     def _serve_static(self, path):
         rel = path[len("/static/"):]
         # 路径归一化后必须仍位于 STATIC_DIR 内，禁止 ../ 穿越
@@ -463,7 +490,7 @@ class Handler(BaseHTTPRequestHandler):
         if not os.path.isfile(full):
             self._send_html(404, "<h1>not found</h1>")
             return
-        ctype = "text/html" if full.endswith(".html") else "application/octet-stream"
+        ctype = self._guess_ctype(full)
         try:
             with open(full, "rb") as f:
                 body = f.read()

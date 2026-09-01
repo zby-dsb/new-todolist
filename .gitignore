@@ -12,5 +12,20 @@ backup/
 __pycache__/
 *.pyc
 
+# Node / Capacitor（手机端）
+node_modules/
+npm_install.log
+cap_add.log
+npm-debug.log*
+
+# Android 构建产物与本地配置
+android/app/build/
+android/build/
+android/.gradle/
+android/local.properties
+android/captures/
+*.keystore
+*.jks
+
 # 代理/工具内部目录（非项目代码）
 .workbuddy/
