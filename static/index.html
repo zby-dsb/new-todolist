@@ -88,8 +88,15 @@
     color: #fff; font-size: 14px; transition: all .15s;
   }
   .item.done .check { background: var(--done); border-color: var(--done); }
-  .item.done .content { color: var(--muted); text-decoration: line-through; }
-  .content { flex: 1; font-size: 15px; word-break: break-all; cursor: text; }
+  .item.done .task-text { color: var(--muted); text-decoration: line-through; }
+  /* 与手机端 demo 保持一致：最多两行，超出省略，长任务名不再撑高任务行 */
+  /* flex-basis 必须为 0，否则超长文本的固有宽度会把右侧删除按钮顶偏 */
+  .task-text {
+    flex: 1 1 0; min-width: 0; font-size: 15px; cursor: text;
+    line-height: 1.45; word-break: break-word; overflow-wrap: anywhere;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
   .id-tag { color: var(--muted); font-size: 12px; width: 28px; flex: none; }
   .btn-del {
     background: transparent; color: var(--danger); padding: 6px 10px; font-size: 13px;
@@ -324,7 +331,7 @@
         li.innerHTML = `
           <span class="id-tag">#${t.id}</span>
           <span class="check" data-act="toggle" data-id="${t.id}">${t.done ? "✓" : ""}</span>
-          <span class="content" data-content="${escapeHtml(t.content)}" title="双击可编辑">${escapeHtml(t.content)}</span>
+          <span class="task-text" data-content="${escapeHtml(t.content)}" title="双击可编辑">${escapeHtml(t.content)}</span>
           <button class="btn-del" data-act="del" data-id="${t.id}" type="button">删除</button>
         `;
         listEl.appendChild(li);
