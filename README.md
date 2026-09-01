@@ -36,6 +36,8 @@ python app.py
 📦 **安装包（APK）已发布在 GitHub Release**：<https://github.com/zby-dsb/new-todolist/releases/tag/v1.2.0>
 不想自己打包的话，用手机浏览器打开该链接，下载 `DailyTodo-v1.0-debug.apk` 后允许「未知来源」安装即可（侧载）。
 
+![手机端安装与使用说明](assets/usage-guide.svg)
+
 ### 安装到手机（推荐：一键脚本）
 1. 手机用**数据线**连上电脑，并在「设置 → 系统和更新 → 开发人员选项」打开 **USB 调试**；
    把「USB 连接方式」设为「传输文件」。

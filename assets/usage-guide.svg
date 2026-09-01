@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="430" viewBox="0 0 760 430" font-family="'PingFang SC','Microsoft YaHei',sans-serif">
+  <rect width="760" height="430" fill="#FFFDF9"/>
+  <text x="32" y="42" font-size="22" font-weight="700" fill="#4A3F35">每日任务清单 · 手机端安装与使用</text>
+  <text x="32" y="64" font-size="12" fill="#8A7A6A">安卓 / 鸿蒙侧载 APK · 数据存手机本地，不联网</text>
+
+  <!-- 手机 mockup -->
+  <rect x="40" y="84" width="210" height="320" rx="28" fill="#C0A080"/>
+  <rect x="52" y="96" width="186" height="296" rx="18" fill="#FBF6EF"/>
+  <circle cx="145" cy="106" r="2.5" fill="#B8A892"/>
+  <text x="145" y="128" font-size="14" font-weight="700" fill="#4A3F35" text-anchor="middle">每日任务清单</text>
+  <text x="145" y="144" font-size="10" fill="#8A7A6A" text-anchor="middle">今天 · 9月1日 周一</text>
+  <rect x="64" y="156" width="162" height="26" rx="8" fill="#FFFFFF" stroke="#E0D5C8"/>
+  <text x="74" y="173" font-size="10" fill="#B0A392">添加任务，回车保存…</text>
+  <!-- task rows -->
+  <rect x="68" y="194" width="16" height="16" rx="4" fill="#C0392B"/>
+  <path d="M71 202 l3 3 l5 -6" stroke="#FFF" stroke-width="2" fill="none"/>
+  <text x="92" y="206" font-size="11" fill="#9A8C7C">买菜</text>
+  <rect x="68" y="222" width="16" height="16" rx="4" fill="#FFF" stroke="#C9BCA8"/>
+  <text x="92" y="234" font-size="11" fill="#4A3F35">写周报</text>
+  <rect x="68" y="250" width="16" height="16" rx="4" fill="#FFF" stroke="#C9BCA8"/>
+  <text x="92" y="262" font-size="11" fill="#4A3F35">跑步 30 分钟</text>
+  <!-- stats -->
+  <rect x="64" y="300" width="162" height="72" rx="10" fill="#F3EBDF"/>
+  <text x="145" y="326" font-size="11" font-weight="700" fill="#4A3F35" text-anchor="middle">今日完成 1 / 3</text>
+  <text x="145" y="346" font-size="10" fill="#7A6E5E" text-anchor="middle">连续打卡 5 天</text>
+  <text x="145" y="362" font-size="10" fill="#7A6E5E" text-anchor="middle">本周 12 · 完成率 33%</text>
+
+  <!-- 步骤卡片 -->
+  <text x="300" y="100" font-size="18" font-weight="700" fill="#4A3F35">安装到手机（4 步）</text>
+  <g>
+    <rect x="300" y="118" width="430" height="58" rx="12" fill="#FBF6EF" stroke="#E7DDCE"/>
+    <circle cx="324" cy="147" r="14" fill="#C0A080"/><text x="324" y="152" font-size="13" font-weight="700" fill="#FFF" text-anchor="middle">1</text>
+    <text x="350" y="142" font-size="12" font-weight="600" fill="#4A3F35">手机：打开 USB 调试</text>
+    <text x="350" y="162" font-size="10.5" fill="#7A6E5E">设置 → 系统和更新 → 开发人员选项 → 打开「USB 调试」</text>
+  </g>
+  <g>
+    <rect x="300" y="186" width="430" height="58" rx="12" fill="#FBF6EF" stroke="#E7DDCE"/>
+    <circle cx="324" cy="215" r="14" fill="#C0A080"/><text x="324" y="220" font-size="13" font-weight="700" fill="#FFF" text-anchor="middle">2</text>
+    <text x="350" y="210" font-size="12" font-weight="600" fill="#4A3F35">电脑：数据线连手机</text>
+    <text x="350" y="230" font-size="10.5" fill="#7A6E5E">双击项目里的「安装到手机.bat」自动推送并启动</text>
+  </g>
+  <g>
+    <rect x="300" y="254" width="430" height="58" rx="12" fill="#FBF6EF" stroke="#E7DDCE"/>
+    <circle cx="324" cy="283" r="14" fill="#C0A080"/><text x="324" y="288" font-size="13" font-weight="700" fill="#FFF" text-anchor="middle">3</text>
+    <text x="350" y="278" font-size="12" font-weight="600" fill="#4A3F35">手机：授权安装</text>
+    <text x="350" y="298" font-size="10.5" fill="#7A6E5E">弹「允许 USB 调试」勾「一律允许」；「纯净模式」拦 → 继续安装</text>
+  </g>
+  <g>
+    <rect x="300" y="322" width="430" height="56" rx="12" fill="#FBF6EF" stroke="#E7DDCE"/>
+    <circle cx="324" cy="350" r="14" fill="#C0A080"/><text x="324" y="355" font-size="13" font-weight="700" fill="#FFF" text-anchor="middle">4</text>
+    <text x="350" y="346" font-size="12" font-weight="600" fill="#4A3F35">打开 App</text>
+    <text x="350" y="365" font-size="10.5" fill="#7A6E5E">桌面找「To Do」图标，点开即可使用（无需联网）</text>
+  </g>
+
+  <text x="32" y="420" font-size="10.5" fill="#9A8C7C">提示：手机端数据与电脑端 tasks.json 不互通；升级系统勿到 HarmonyOS NEXT（会失去安卓兼容）。</text>
+</svg>
